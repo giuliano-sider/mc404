@@ -1,2 +1,10 @@
 INSTRUCTIONS for GDB with qemu (emulated)
 
+code away
+when you're done, take the source and compile it with arm-none-eabi-gcc, making sure you add debug information; you might also want to disable optimization. use the following additional flags: -mcpu=cortex-m3 -mthumb --specs=rdimon.specs -lc -lrdimon
+then run qemu-arm, and make it wait for a serial connection with gdb on some port in localhost (-g localhost:xxxx)
+in another terminal window, run arm-none-eabi-gdb with a remote target as the same port where qemu-arm is standing by (choose not to restart the running program when you tell it to run). gdb command: target extended-remote localhost:xxxx
+debug away
+
+
+
