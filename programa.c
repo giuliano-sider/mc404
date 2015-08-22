@@ -1,8 +1,10 @@
 #include <stdio.h>
 
-int main(){
+int main(int argc, char **argv) {
 
-  printf("hello bumba\n\a");
+  for(i = 0 ; i < argc ; i++)
+    printf("arg %i: %s\n", i , argv[i] );
+
   return 0;
 
 }
