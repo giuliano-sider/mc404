@@ -1,12 +1,6 @@
 *~
-*
-#ignores all but the following files
-!*.c
-!*.txt
-!*.sh
-!*.cpp
-!*.h
-!README
-!.s
+#*#
 
 
+
+strtok/strtok
