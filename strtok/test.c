@@ -2,32 +2,24 @@
 #include <stdio.h>
 
 
+
 int main(int argc, char **argv) {
 
   char mystr[] = "this is a string like any other, really\n"
-                 ", there is nothing special about it. But it\n"
-                 "will be tokenized, to be sure, like no other";
-  char delim[] = "\n ,.\t";
-  char *ptr = strtok(mystr, delim);
+    ", there is nothing special about it. But it\n"
+    "will be tokenized, to be sure, like no other";
 
-  while(ptr!=NULL){
-    printf("%s\t", ptr);
-    ptr = strtok(NULL, delim);
+  char delimiters[] = " \n\t.,-";
+  char *ptr = strtok(test, delimiters);
+
+  while(ptr != NULL) {
+    printf("%s-", ptr);
+    ptr = strtok(NULL, delimiters);
   }
-  putc('\n');
-
-  return 0;
-
-}
-
-
-
-
-
-
-
+  putchar('\n');
 
 
   return 0;
 
 }
+
