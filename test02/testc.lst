@@ -1,0 +1,66 @@
+GAS LISTING /tmp/ccSngceo.s 			page 1
+
+
+   1              		.file	"testc.c"
+   2              		.text
+   3              	.Ltext0:
+   4              		.globl	main
+   6              	main:
+   7              	.LFB2:
+   8              		.file 1 "testc.c"
+   1:testc.c       **** #include <stdio.h>
+   2:testc.c       **** #include <stdlib.h>
+   3:testc.c       **** 
+   4:testc.c       **** int main(){
+   9              		.loc 1 4 0
+  10              		.cfi_startproc
+  11 0000 55       		pushq	%rbp
+  12              		.cfi_def_cfa_offset 16
+  13              		.cfi_offset 6, -16
+  14 0001 4889E5   		movq	%rsp, %rbp
+  15              		.cfi_def_cfa_register 6
+  16 0004 4883EC10 		subq	$16, %rsp
+   5:testc.c       **** 
+   6:testc.c       ****   const int amount = 1000;
+  17              		.loc 1 6 0
+  18 0008 C745FCE8 		movl	$1000, -4(%rbp)
+  18      030000
+   7:testc.c       ****   unsigned char *cp = (unsigned char *) malloc(sizeof(unsigned char) * amount);
+  19              		.loc 1 7 0
+  20 000f 8B45FC   		movl	-4(%rbp), %eax
+  21 0012 4898     		cltq
+  22 0014 4889C7   		movq	%rax, %rdi
+  23 0017 E8000000 		call	malloc
+  23      00
+  24 001c 488945F0 		movq	%rax, -16(%rbp)
+   8:testc.c       **** 
+   9:testc.c       ****   free(cp);
+  25              		.loc 1 9 0
+  26 0020 488B45F0 		movq	-16(%rbp), %rax
+  27 0024 4889C7   		movq	%rax, %rdi
+  28 0027 E8000000 		call	free
+  28      00
+  10:testc.c       **** 
+  11:testc.c       ****   return 0;
+  29              		.loc 1 11 0
+  30 002c B8000000 		movl	$0, %eax
+  30      00
+  12:testc.c       **** 
+  13:testc.c       **** }
+  31              		.loc 1 13 0
+  32 0031 C9       		leave
+  33              		.cfi_def_cfa 7, 8
+  34 0032 C3       		ret
+  35              		.cfi_endproc
+  36              	.LFE2:
+  38              	.Letext0:
+GAS LISTING /tmp/ccSngceo.s 			page 2
+
+
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 testc.c
+     /tmp/ccSngceo.s:6      .text:0000000000000000 main
+
+UNDEFINED SYMBOLS
+malloc
+free
