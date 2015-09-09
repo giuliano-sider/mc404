@@ -31,7 +31,8 @@ PrintList:
 	ldr r4, =Formato
 	mov r5, r0
 printmore:
-	cbz r5, finishedprint @ null pointer: print it and return
+	cmp r5, 0 @ ????? listcreate.s:34: Error: selected processor does not support ARM mode `cbz r5,finishedprint'
+	beq finishedprint
 	mov r0, r4 @ load formatted string 
 	ldr r1, [r5], 4 @ load the key for printing
 	ldr r2, [r5] @ load the address for printing

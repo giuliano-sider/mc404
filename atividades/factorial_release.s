@@ -11,8 +11,9 @@ Disciplina MC 404 C
 int *factorial(int n)
 r0: (non negative) number whose factorial is to be computed
 Output: r0 (pointer to a buffer of 32 bit words encoding a large unsigned integer in little endian format)
-it is our responsibility to free the buffer once we are done using it.
-r1 (length of the big number in words (the other remaining words in high memory are leading zeroes)), r2 (actual length of the buffer allocated by the function, including those leading zeroes in high memory)
+It is our responsibility to free the buffer once we are done using it. 
+r1: length of the big number in words (the other remaining words in high memory are leading zeroes),
+r2: actual length of the buffer allocated by the function, including those leading zeroes in high memory
 Clobbers r0-r3, r12, as per the ARM calling convention.
 
 void PrintIntArray(int *a, int n) :
@@ -21,6 +22,7 @@ Prints array to stdout
 Clobbers r0-r3 (ARM calling convention)
 
 void PrintBigNum(int *array, int n): r0: buffer. r1: number of words. r0-r3: clobber (ARM PCS)
+This function prints a big number stored in a buffer (in little endian form).
 */
 .data
 .align
@@ -29,9 +31,8 @@ input_integer: .word 0
 .text
 .align
 PromptFormat: .asciz "%i"
-OutFormat: .asciz "The factorial of %i is:\n"
+OutFormat: .asciz "The factorial of %i is %i words long, stored in a buffer %i words in size. In hexadecimal:\n"
 .align
-ptr_input_integer: .word input_integer
 
 .global main
 main:
@@ -39,18 +40,21 @@ main:
 
 	ldr r0, =PromptFormat
 	ldr r4, =input_integer
-	mov r1, r4 
+	mov r1, r4 @ n
 	bl scanf
 	ldr r4, [r4] @ integer we read from stdin
 	mov r0, r4
 	bl Factorial
 	mov r5, r0 @ store pointer to buffer with answer
-	mov r6, r1 @ store size of this buffer in words
+	mov r6, r1 @ store size of this number in words
+	mov r7, r2 @ store size of this buffer in words ('free' doesn't need it, but we can keep it for debugging)
 	ldr r0, =OutFormat
-	mov r1, r4
+	mov r1, r4 @ n
+	mov r2, r6 @ length of num (in words)
+	mov r3, r7 @ buffer size (in words)
 	bl printf
-	mov r0, r5
-	mov r1, r6
+	mov r0, r5 @ buffer
+	mov r1, r6 @ length of num (in words)
 	bl PrintBigNum
 
 	mov r0, r5
@@ -68,6 +72,7 @@ j .req r7
 low .req r1
 high .req r12 
 	push { r4-r7, lr }
+
 	cmp r0, 0
 	IT eq
 	moveq r0, 1 @ handles special case, n=0. 0! == 1!
@@ -84,13 +89,15 @@ factorialouterloop:
 	bgt exitfactorialouterloop 
 	mov carry, 0
 	mov carrymul, 0 @ haven't performed any mults yet
-	mov j, 0 @ index of the inner loop (multiplication of i by large number held in buffer: start at digit 0 (little endian) )
+	mov j, 0 @ index of the inner loop (multiplication of i by large number held in buffer:
+             @ start at digit 0 (little endian) )
 	factorialinnerloop:
 		cmp j, length @ if j <= length - 1
 		beq exitfactorialinnerloop
 		ldr r1, [array, j, lsl 2]
 		umull low, high, i, r1 @ (lo, hi) = i*array[j]
-		add carrymul, carry @ note: this operation itself will never set carry. 'carry' var is the carry from the addition in the previous iteration, stored here to allow us to use cmp throughout
+		add carrymul, carry @ note: this operation itself will never set carry; 'carry' var is the carry from the
+                            @ addition in the previous iteration, stored here to allow us to use cmp throughout
 		adds low, carrymul
 		ITE cs @ update carry based on the previous addition
 		movcs carry, 1
@@ -101,8 +108,9 @@ factorialouterloop:
 		b factorialinnerloop
 exitfactorialinnerloop:
 	add carrymul, carry @ this operation never carries: (2^32 - 1)(2^32 - 1) = 2^64 - 2*2^32 + 1
-	cmp carrymul, 0 @ if( carrymul != 0 || carry flag set ) if either of them is nonzero, our carry must be appended to the buffer
-	ITT gt @@@@@
+	cmp carrymul, 0 @ if( carrymul != 0 || carry flag set ) if either of them is nonzero,
+					@ our carry must be appended to the buffer
+	ITT gt
 	strgt carrymul, [array, length, lsl 2] @ array[length] = carry_from_prev_mul + carry_from_prev_add
 	addgt length, 1 @ we just added a word to the end of our buffer
 	add i, 1
@@ -111,13 +119,8 @@ exitfactorialouterloop:
 	mov r1, length @ return length of number in words
 	mov r2, n @ return size of buffer in words (n)
 
-	push { r0-r2 }
-		ldr r0, =checkmsg
-		bl printf
-	pop { r0-r2 }
-
 	pop { r4-r7, pc }
-bad_alloc:
+bad_alloc: @ optional section if you don't want to check for memory allocation error
 	ldr r0, =bad_alloc_msg
 	mov r1, pc
 	mov r2, lr
@@ -126,8 +129,6 @@ bad_alloc:
 	mov r0, 1
 	bl exit @ exit(1)
 bad_alloc_msg: .asciz "Error: could not obtain memory from the heap\npc = %i, lr = %i, sp = %i\n"
-
-checkmsg: .asciz "length = %i, n = %i\n"
 .align
 
 PrintBigNum: @ r0: buffer. r1: number of words
@@ -150,7 +151,7 @@ printbignumloopexit:
 	bl putchar
 	pop { r4-r6, pc }
 bignumformatstr: .asciz "%08X"
-firstbignumformatstr: .asciz "%8X"
+firstbignumformatstr: .asciz "%8X" 
 .align
 
 PrintIntArray:
