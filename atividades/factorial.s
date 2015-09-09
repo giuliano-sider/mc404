@@ -76,8 +76,8 @@ high .req r12
 	bl malloc @r0 will contain pointer to buffer (array) where we will compute the result
 	cmp r0, 0
 	beq bad_alloc @ malloc returns zero (NULL) when memory couldn't be allocated
-	mov r6, 1 @ A.length (r6) is initialized to 1
-	str r6, [array] @ we set array[0] = 1 to be the initial value ( 0! == 1! == 1)
+	mov length, 1 @ A.length (r6) is initialized to 1
+	str length, [array] @ we set array[0] = 1 to be the initial value ( 0! == 1! == 1)
 	mov i, 2 @ index of the outer loop (numbers to be multiplied into the buffer)
 factorialouterloop:
 	cmp i, n @ if i<=n
@@ -101,15 +101,15 @@ factorialouterloop:
 		b factorialinnerloop
 exitfactorialinnerloop:
 	add carrymul, carry @ this operation never carries: (2^32 - 1)(2^32 - 1) = 2^64 - 2*2^32 + 1
-	cmp carrymul, 0
-	ITT eq
-	streq carrymul, [array, length, lsl 2] @ array[length] = carry_from_prev_mul + carry_from_prev_add
-	addeq length, 1 @ we just added a word to the end of our buffer
+	cmp carrymul, 0 @ if( carrymul != 0 || carry flag set ) if either of them is nonzero, our carry must be appended to the buffer
+	ITT gt @@@@@
+	strgt carrymul, [array, length, lsl 2] @ array[length] = carry_from_prev_mul + carry_from_prev_add
+	addgt length, 1 @ we just added a word to the end of our buffer
 	add i, 1
 	b factorialouterloop
 exitfactorialouterloop:
-	mov r1, r6 @ use r6 (length) perhaps
-	mov r2, r4 @ size of buffer in words (not necessary)
+	mov r1, length @ return length of number in words
+	mov r2, n @ size of buffer in words (n)
 
 	push { r0-r2 }
 		ldr r0, =checkmsg
@@ -130,21 +130,27 @@ bad_alloc_msg: .asciz "Error: could not obtain memory from the heap\npc = %i, lr
 checkmsg: .asciz "length = %i, n = %i\n"
 .align
 
-PrintBigNum: @r0: buffer. r1: number of words
+PrintBigNum: @ r0: buffer. r1: number of words
 	push { r4-r6, lr }
 	mov r4, r0 @ buffer containing big num in little endian format
-	sub r5, r1, 1 @ offset into that buffer
+	add r5, r4, r1, lsl 2 @ pointer to iterate over the elements of the buffer.
+	ldr r0, =firstbignumformatstr
+	ldr r1, [r5, -4]! @ remember, we are iterating over the elements from most to least significant
+	bl printf @ we print the first one (most significant one) separately to avoid leading zeroes
 	ldr r6, =bignumformatstr
 printbignumloop:
+	cmp r4, r5
+	beq printbignumloopexit
 	mov r0, r6
-	ldr r1, [r4, r5, lsl 2]
+	ldr r1, [r5, -4]! @ from most significant (highest address) to least (lowest address)
 	bl printf
-	subs r5, 1
-	bge printbignumloop
+	b printbignumloop
+printbignumloopexit:
 	mov r0, '\n'
 	bl putchar
 	pop { r4-r6, pc }
 bignumformatstr: .asciz "%08X"
+firstbignumformatstr: .asciz "%8X"
 .align
 
 PrintIntArray:
