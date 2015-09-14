@@ -1,29 +1,26 @@
-/******* factorial.s *********
+/********* factorial.s *********
 Programa simples em assembly para arm-none-eabi-gcc que calcula o fatorial de um número de
 32 bits.
 Giuliano Sider, RA 146271, 08/09/2015
 Disciplina MC 404 C
-*****************************/
-
-.syntax unified
-
-/*
-int *factorial(int n)
-r0: (non negative) number whose factorial is to be computed
-Output: r0 (pointer to a buffer of 32 bit words encoding a large unsigned integer in little endian format)
-It is our responsibility to free the buffer once we are done using it. 
+********************************
+FUNCTION int *factorial(int n)
+INPUT: r0 (non negative) number whose factorial is to be computed.
+OUTPUT: r0 (pointer to a buffer of 32 bit words encoding a large unsigned integer in little endian format)
 r1: length of the big number in words (the other remaining words in high memory are leading zeroes),
-r2: actual length of the buffer allocated by the function, including those leading zeroes in high memory
-Clobbers r0-r3, r12, as per the ARM calling convention.
+r2: actual length of buffer allocated by the function, including those leading zeroes in high memory
+SIDE EFFECTS: Clobbers r0-r3, r12, as per the ARM calling convention.
+NOTE: It is the caller's responsibility to free the buffer once done using it. 
 
-void PrintIntArray(int *a, int n) :
-r0: pointer to array. r1: size of array in words
-Prints array to stdout
-Clobbers r0-r3 (ARM calling convention)
+FUNCTION void PrintIntArray(int *a, int n)
+INPUT: r0 (pointer to array), r1 (size of array in words)
+SIDE EFFECTS: Prints array to stdout. Clobbers r0-r3, r12 (ARM calling convention)
 
-void PrintBigNum(int *array, int n): r0: buffer. r1: number of words. r0-r3: clobber (ARM PCS)
-This function prints a big number stored in a buffer (in little endian form).
-*/
+FUNCTION void PrintBigNum(int *array, int n)
+INPUT: r0 (pointer to buffer), r1 (number of words in buffer).
+SIDE EFFECTS: prints a big number stored in a buffer (in little endian form). Clobbers: r0-r3, r12.
+*******************************/
+.syntax unified
 .data
 .align
 input_integer: .word 0
@@ -37,7 +34,6 @@ OutFormat: .asciz "The factorial of %i is %i words long, stored in a buffer %i w
 .global main
 main:
 	push { r4-r7, lr }
-
 	ldr r0, =PromptFormat
 	ldr r4, =input_integer
 	mov r1, r4 @ n
@@ -56,9 +52,8 @@ main:
 	mov r0, r5 @ buffer
 	mov r1, r6 @ length of num (in words)
 	bl PrintBigNum
-
-	mov r0, r5
-	bl free @ our responsibility to deallocate the buffer
+	mov r0, r5 @ our responsibility to deallocate the buffer
+	bl free
 	pop { r4-r7, pc }
 
 Factorial:
@@ -72,7 +67,6 @@ j .req r7
 low .req r1
 high .req r12 
 	push { r4-r7, lr }
-
 	cmp r0, 0
 	IT eq
 	moveq r0, 1 @ handles special case, n=0. 0! == 1!
@@ -90,14 +84,14 @@ factorialouterloop:
 	mov carry, 0
 	mov carrymul, 0 @ haven't performed any mults yet
 	mov j, 0 @ index of the inner loop (multiplication of i by large number held in buffer:
-             @ start at digit 0 (little endian) )
+		@ start at digit 0 (little endian) )
 	factorialinnerloop:
 		cmp j, length @ if j <= length - 1
 		beq exitfactorialinnerloop
 		ldr r1, [array, j, lsl 2]
 		umull low, high, i, r1 @ (lo, hi) = i*array[j]
 		add carrymul, carry @ note: this operation itself will never set carry; 'carry' var is the carry from the
-                            @ addition in the previous iteration, stored here to allow us to use cmp throughout
+			@ addition in the previous iteration, stored here to allow us to use cmp throughout
 		adds low, carrymul
 		ITE cs @ update carry based on the previous addition
 		movcs carry, 1
@@ -109,7 +103,7 @@ factorialouterloop:
 exitfactorialinnerloop:
 	add carrymul, carry @ this operation never carries: (2^32 - 1)(2^32 - 1) = 2^64 - 2*2^32 + 1
 	cmp carrymul, 0 @ if( carrymul != 0 || carry flag set ) if either of them is nonzero,
-					@ our carry must be appended to the buffer
+		@ our carry must be appended to the buffer
 	ITT gt
 	strgt carrymul, [array, length, lsl 2] @ array[length] = carry_from_prev_mul + carry_from_prev_add
 	addgt length, 1 @ we just added a word to the end of our buffer
@@ -118,8 +112,7 @@ exitfactorialinnerloop:
 exitfactorialouterloop:
 	mov r1, length @ return length of number in words
 	mov r2, n @ return size of buffer in words (n)
-
-	pop { r4-r7, pc }
+	pop { r4-r7, pc } @ return to main
 bad_alloc: @ optional section if you don't want to check for memory allocation error
 	ldr r0, =bad_alloc_msg
 	mov r1, pc
@@ -154,7 +147,7 @@ bignumformatstr: .asciz "%08X"
 firstbignumformatstr: .asciz "%8X" 
 .align
 
-PrintIntArray:
+PrintIntArray: @ for debugging/curiosity. 'x' command from gdb works just as well
 	push { r4-r6, lr }
 	mov r4, 0 @ index
 	mov r5, r1 @ array size
