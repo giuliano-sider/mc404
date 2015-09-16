@@ -5,9 +5,30 @@ Giuliano Sider, RA 146271, 06/09/2015
 Disciplina MC 404 C
 ****************************/
 
+/*
+Teste 01: resultado incorreto
+
+    1,32c1,32
+    <    1 0001bb04
+    <    3 0001bb0c
+    <    5 0001bb14
+    <    7 0001bb1c
+    <    9 0001bb24
+    <   11 0001bb2c
+    <   13 0001bb34
+    <   15 0001bb3c
+    <   17 0001bb44
+
+it works with a simple .align and .word 0, 0, 0, 0
+
+*/
+
+
 .syntax unified
-.align
+
+
 .text
+.align @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 .global main
 
 /*
@@ -31,6 +52,7 @@ PrintList:
 	ldr r4, =Formato
 	mov r5, r0
 printmore:
+	@cbz r5,finishedprint @arm mode problem???
 	cmp r5, 0 @ ????? listcreate.s:34: Error: selected processor does not support ARM mode `cbz r5,finishedprint'
 	beq finishedprint
 	mov r0, r4 @ load formatted string 
@@ -39,6 +61,22 @@ printmore:
 	mov r5, r2 @ load r5 with the address of the next node
 	bl printf
 	b printmore
+	mov r0, r0
+	mov r0, r0
+	mov r0, r0
+	mov r0, r0
+	/*mov r0, r0
+	mov r0, r0
+	mov r0, r0
+	mov r0, r0
+	mov r0, r0
+	mov r0, r0
+	mov r0, r0
+	mov r0, r0
+	mov r0, r0
+	mov r0, r0
+	mov r0, r0
+	mov r0, r0*/
 finishedprint:
 	/*mov r0, r4
 	mov r1, 0
@@ -46,10 +84,13 @@ finishedprint:
 	bl printf*/
 	pop { r4-r6, pc }
 
-.align
+
 Formato: .asciz "%4d %08x\n" @ integer key and address of next node
-.align
+
+
 .data
+.align @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@.word 0, 0, 0, 0
 ListHead:
 .equ i, 1
 .equ address, ListHead + 8
