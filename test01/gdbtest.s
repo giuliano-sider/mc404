@@ -15,7 +15,8 @@ inputformat .req r4
 inputnum .req r5
 randnum .req r6
 	push { r4-r6 , lr }
-	mov r0, 0
+	mvns r0, 3 @ hmmmmmm
+	movs r0, 0
 	bl time
 	bl srand @ srand(time(NULL)); to seed the randomizer, where NULL == 0
 	ldr inputformat, =ReadNumStr
@@ -24,8 +25,8 @@ Guess_Loop:
 	ldr r0, =PromptMsg
 	bl printf
 	bl rand
-	mov r1, 1
-	add randnum, r1, r0, lsr 22 @ only use ten random bits... and add 1 to it. result: unif( 1, 1024) (included)
+	movs r1, 1 @ randnum==r6 will get most significant 10 bits of random reg (r0 = rand() ) plus 1
+	adds randnum, r1, r0, lsr 22 @ only use ten random bits... and add 1 to it. result: unif( 1, 1024) (included)
 	Nth_Guess_Loop:
 		mov r0, inputformat
 		mov r1, inputnum
