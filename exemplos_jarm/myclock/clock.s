@@ -191,11 +191,17 @@ Increment:
 	//bl TimerOn @ debugging. how are you supposed to debug with a fucking timer
 	b	loop_on
 desligaAndResetTheClock:
+	bl TimerOff @ otherwise we get a race!!
 	bl ResetTheClock
 desliga:	
 	bl TimerOff
+	mov r0, #0
 	ldr	r1, =LED_ON_OFF
 	str r0, [r1]		@ desliga led
+	ldr r1, [on_off_btn] @ loading this thing will turn it off?? DOESNT DO ANYTHING - TOGGLE BUTTON DEPENDS ON JAVA APPLICATION
+	cmp r1, #1
+	it eq
+	streq r0, [on_off_btn] @ turn off the toggle button as well so we don't get a race. DOESNT DO ANYTHING - TOGGLE BUTTON DEPENDS ON JAVA APPLICATION
 	b loop_off
 
 TimerOff:

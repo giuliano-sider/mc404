@@ -1,7 +1,7 @@
 #/bin/sh
 
 file=$1
-file="./bin/${file%.*}"
+file="./bin/${file%.*}" # 
 
 if [ "$2" == "-c" ] ; then
 	jarmopt="-c"
@@ -21,10 +21,14 @@ if [ ! -d "./bin" ]; then
     mkdir "./bin"
 fi
 
-#arm-none-eabi-as  -aghls="$file-listing.txt"  $1 -o $file.elf
-~/mc404/jarm/arm-none-eabi-linux-as  -aghls="$file-listing.txt"  $1 -o $file.elf
-# -mcpu=cortex-m3 -mthumb --specs=rdimon.specs -lc -lrdimon -g
+
+#~/mc404/jarm/arm-none-eabi-linux-as  -aghls="$file-listing.txt"  $1 -o $file.elf
+arm-none-eabi-linux-as  -aghls="$file-listing.txt"  $1 -o $file.elf
+
+# -mcpu=cortex-m3 -mthumb --specs=rdimon.specs -lc -lrdimon -g ### this is for arm-none-eabi-gcc
+
 if [ $? -ne 0 ] ; then 
+
     echo "arm-none-eabi-linux-as exited with error. no file generated"
     exit
 fi
@@ -34,4 +38,7 @@ arm-none-eabi-objdump -D $file.elf > $file.txt # "disassembla" o executavel no a
 # add '-c' switch to run jarm for console based I/O. '-d' for devices. it uses devices.txt
 #jarm -d devices.txt -l $pathtofiles$1.elf config file in folder with jarm
 
-~/mc404/jarm/jarm $jarmopt -l $file.elf
+#~/mc404/jarm/jarm $jarmopt -l $file.elf
+jarm $jarmopt -l $file.elf
+
+#note: add the jarm folder to my path in bashrc (or bash profile??) at home.
