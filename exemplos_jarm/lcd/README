@@ -1,0 +1,15 @@
+Exemplo de uso do LCD com o simulador jarm
+
+Para montar:
+
+arm-none-eabi-as test.s
+
+Para executar:
+
+jarm -d devices.txt -l a.out
+
+Para iniciar a simulação, use o comando
+
+g _start
+
+

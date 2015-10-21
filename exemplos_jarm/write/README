@@ -1,0 +1,22 @@
+Este exemplo mostra como utilizar a chamada ao sistema 'write'.
+
+Chamadas ao sistema utilizam a instrução 'swi 0'. 
+
+  int write(int fd, const void *buf, size_t count)
+
+    r0 deve conter o número de bytes a serem escritos
+    r1 deve conter o endereço inicial da cadeia a ser escrita
+    r7 deve conter o descritor (1, para stdout ou 2 para stderr).
+
+Os caracteres são escritos na console (terminal).
+
+Para executar, compile
+
+arm-none-eabi-as test.s -o test
+
+
+e inicie o simulador, utilizando a flag -c (para carregar a console)
+
+jarm -c -l test
+
+No simulador, execute "g _start".

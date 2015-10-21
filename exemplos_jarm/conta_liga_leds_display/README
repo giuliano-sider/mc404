@@ -1,0 +1,17 @@
+Este exemplo mostra como utilizar leds, botões e displays de sete
+segmentos, sem interrupções.
+
+O exemplo tem dois botões, um do tipo Toggle (Liga) e outro do tipo
+Push (Conta). Se o botão Liga estiver ligado, cada vez que o botão
+Conta é pressionado o valor mostrado no display (decimal) e leds
+(binário) é incrementado.
+
+Para executar, compile
+
+arm-as test.s -o test.exe
+
+e inicie o simulador
+
+jarm -l test.exe -d devices.txt
+
+No simulador, execute "g main".

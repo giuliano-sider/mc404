@@ -1,0 +1,33 @@
+Este exemplo mostra como utilizar as chamadas ao sistema 
+'read' e 'write'.
+
+Chamadas ao sistema utilizam a instrução 'sys 00'. 
+
+  int read(int fd, const void *buf, size_t count)
+
+     r0 deve conter o número de bytes a serem lidos
+     r1 deve conter o endereço inicial do buffer
+     r7 deve conter o descritor do arquivo (0 para stdin)
+
+Serão lidos até r0 caracteres ou final de linha
+(o que ocorrer antes). Ao final, r0 tem o número
+de bytes lidos.
+
+  int write(int fd, const void *buf, size_t count)
+
+     r0 deve conter o número de bytes a serem escritos
+     r1 deve conter o endereço inicial da cadeia a ser escrita
+     r7 deve conter o descritor do arquivo (1 para stdout)
+
+Os caracteres são lidos da e escritos na console (terminal).
+
+Para executar, compile
+
+arm-none-eabi-as test.s -o test.o
+arm-none-eabi-ld test.o -o test
+
+e inicie o simulador, utilizando a flag -c (para carregar a console)
+
+jarm -c -l test
+
+No simulador, execute "g _start".

@@ -1,0 +1,126 @@
+# Arquivo de configuraÃ§Ã£o de dispositivos para o simulador
+# Nota: no simulador, todos os dispositivos devem ter endereÃ§os
+# acima de 0x80000
+
+# dispositivos disponÃ­veis:
+
+# painel de botÃµes (de 1 a 8 botÃµes)
+# painel de leds (de 1 a 8 leds)
+# painel de display de 7 segmentos (de 1 a 8 mostradores)
+# mini-teclado de 9 teclas
+# lcd (16x2, 20x2, 16x4 ou 20x4)
+# slider
+# timer
+
+#######
+# definiÃ§Ã£o de um painel de botÃµes
+#######
+# inicia com uma linha que comeÃ§a com "%buttons" seguido do nome do painel (nome da janela deste painel)
+# para cada botÃ£o no painel, insira uma linha contendo os parÃ¢metros name, port, int, type
+#    name Ã© o nome que aparece no botÃ£o
+#    port Ã© a porta de dados do botÃ£o
+#    int Ã© o tipo de interrupÃ§Ã£o gerada (se 0 nÃ£o gera interrupÃ§Ã£o)
+#    type Ã© o tipo do botÃ£o. Pode ser: T para botÃ£o do tipo "toggle" (liga/desliga) ou
+#                                      P para botÃ£o do tipo "push" (botÃ£o de pulso)
+#
+# uma leitura na porta do botÃ£o retorna 1 se o botÃ£o estiver pressionado ou 0 caso contrÃ¡rio
+# no botÃ£o de tipo P, uma leitura reseta o estado do botÃ£o (que somente vai voltar a valer 1
+# quando o botÃ£o for pressionado novamente). Uma interrupÃ§Ã£o de tipo int Ã© gerada a cada mudanÃ§a de estado, 
+# se int for diferente de zero.
+# Exemplo
+%buttons Comando
+#name port int type
+Liga 0x80011 0x00 T
+Conta 0x80012 0x00 P
+
+#######
+# definiÃ§Ã£o de um painel de leds
+#######
+# inicia com uma linha que comeÃ§a com "%leds" seguido do nome do painel (nome da janela deste painel).
+# A segunda linha deve conter parÃ¢metros color, num_leds, port
+#    color Ã© a cor dos leds (red, green, yellow)
+#    num_leds Ã© o nÃºmero de leds do painel (1 a 8)
+#    port Ã© a porta de dados do botÃ£o
+# Cada bit do byte escrito na porta do painel liga ou desliga o led correspondente. O led mais Ã  
+# esquerda do painel corresponde ao bit menos significativo.
+# Exemplo:
+
+%leds On/Off
+# parÃ¢metros: color num_leds port
+red 8 0x90000
+
+#######
+# definiÃ§Ã£o de um painel de displays de sete segmentos
+#######
+# inicia com uma linha que comeÃ§a com "%6segdisplays" seguido do nome do painel (nome da janela deste painel).
+# Cada linha seguinte indica a porta de dados de um display. A primeira linha corresponde
+# Ã  porta do display mais Ã  esquerda do painel, a Ãºltima linha corresponde Ã  porta do display 
+# mais Ã  direita. 
+# Exemplo:
+
+%7segdisplays Display
+#port
+0x90071
+0x90070
+
+#######
+# definiÃ§Ã£o de um mini-teclado
+#######
+# Inicia com uma linha que comeÃ§a com "%keyboard" seguido do nome do painel (nome da janela deste painel)
+# A segunda linha deve conter os parÃ¢metros dataport statusport int
+#   dataport Ã© o endereÃ§o da porta de dados
+#   statusport Ã© o endereÃ§o da porta de estado
+#   int Ã© o tipo de interrupÃ§Ã£o gerada (se zero, nÃ£o gera interrupÃ§Ã£o)
+# Na porta de estado, o bit 0 indica se hÃ¡ dado disponÃ­vel para ser lido, o bit 1 indica erro de
+# atropelamento (overrun). O estado Ã© resetado para 0 a cada leitura.
+# Uma interrupÃ§Ã£o de tipo int Ã© gerada a cada tecla pressionada, se int for diferente de zero.
+# Exemplo:
+%keyboard Teclado
+0x80040 0x80041 0x02
+
+#######
+# definiÃ§Ã£o de um slider
+#######
+# Inicia com uma linha que comeÃ§a com "%slider" seguido do nome do painel (nome da janela deste painel)
+# A segunda linha deve conter os parÃ¢metros dataport statusport int min_value max_value init_value
+#   dataport Ã© o endereÃ§o da porta de dados
+#   int Ã© o tipo de interrupÃ§Ã£o gerada (se zero, nÃ£o gera interrupÃ§Ã£o)
+#   min_value Ã© valor mÃ­nimo do slider
+#   max_value Ã© valor mÃ¡ximo do slider
+#   init_value Ã© valor inicial do slider
+# Na porta de estado, o bit 0 indica se hÃ¡ dado disponÃ­vel para ser lido, o bit 1 indica erro de
+# atropelamento (overrun). O estado Ã© resetado para 0 a cada leitura.
+# Uma interrupÃ§Ã£o de tipo int Ã© gerada a cada tecla pressionada, se int for diferente de zero.
+# Exemplo:
+%slider Slider
+0x80050 0 10 200 150
+
+#######
+# definiÃ§Ã£o de um timer
+#######
+# Inicia com uma linha que comeÃ§a com "%timer".
+# A segunda linha deve conter os parÃ¢metros dataport int 
+#   dataport Ã© o endereÃ§o da porta de dados
+#   int Ã© o tipo de interrupÃ§Ã£o gerada
+# O timer Ã© programado escrevendo o valor do intervalo desejado na porta de dados.
+# Se o valor escrito Ã© zero, o timer Ã© desligado. Caso contrÃ¡rio uma interrupÃ§Ã£o de tipo int 
+# Ã© gerada a cada vez que o timer chega a zero. O timer Ã© automaticamente reinicializado
+# com o valor programado a cada vez que chega a zero.
+# Exemplo:
+%timer Timer
+# parÃ¢metros dataport int
+0x08041 0x09
+
+#######
+# definiÃ§Ã£o de um LCD
+#######
+# Inicia com uma linha que comeÃ§a com "%lcd".
+# A segunda linha deve conter os parÃ¢metros cmdport dataport color size
+#   cmdport Ã© o endereÃ§o da porta de comandos
+#   dataport Ã© o endereÃ§o da porta de dados
+#   color Ã© a cor; pode ser blue, green ou amber
+#   size Ã© o tamanho; pode ser 16x2, 20x2 or 20x4
+# Exemplo:
+%lcd
+0x90000 0x90001 blue 20x4
+

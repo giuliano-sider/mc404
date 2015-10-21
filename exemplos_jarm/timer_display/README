@@ -1,0 +1,15 @@
+Este exemplo mostra como utilizar o display de sete segumentos e 
+o timer, com interrupções.
+
+O exemplo tem um painel com apenas um display, que tem o valor 
+incrementado a cada interrupção do timer.
+
+Para executar, compile
+
+arm-as test.s -o test.exe
+
+e inicie o simulador
+
+jarm -l test.exe -d devices.txt
+
+No simulador, execute "g main".

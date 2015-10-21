@@ -1,0 +1,6 @@
+# arquivo de configuração de dispositivos para o simulador jarm
+
+%leds L1
+#color_specs port
+r 0x90000
+

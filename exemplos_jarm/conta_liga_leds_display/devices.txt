@@ -1,0 +1,14 @@
+# arquivo de configuração de dispositivos para o simulador
+
+%7segdisplays Display
+#port
+0x90080
+
+%leds On/Off
+# led color array and port number
+r 0x90110
+
+%buttons Comando
+#name port int type
+Conta 0x90010 0x00 P
+Liga 0x90000 0x00 T
