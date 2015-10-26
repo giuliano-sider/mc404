@@ -1,4 +1,4 @@
-/************ MC404C, Giuliano Sider, 20/10/2015
+	/************ MC404C, Giuliano Sider, 20/10/2015
 *** Atividade Desafio 2: biblioteca para gerenciar lista ligadas (alocadas estaticamente)
 *** e programa teste para usá-las.
 
@@ -46,16 +46,17 @@ WelcomeMsg: .asciz "Welcome to Linked List Manager Live\n\n%s"
 InputErrorMsg: .asciz "bad command. press 'h' to view USAGE message\n"
 GoodbyeMsg: .asciz "Thank you for using LinkedListManager\nHave a good\n"
 UsageMsg: .ascii "USAGE: (all lower case letters)\n"
-			.ascii "\tTo create a new list:     c\n"
-			.ascii "\tTo delete a list:         d <list>\n"
-			.ascii "\tTo find a key in a list:  f <key> <list>\n"
-			.ascii "\tTo show this help menu:   h OR ?\n"
-			.ascii "\tTo insert a key:          i <key> <list>\n"
-			.ascii "\tTo show all active lists: l\n"
-			.ascii "\tTo dump memory contents : m\n"
-			.ascii "\tTo print a list:          p <list> OR < list range > OR * \n"
-			.ascii "\tTo quit:                  q\n"
-			.asciz "\tTo remove a key:          r <key> <list>\n\n"
+			.ascii "\tTo create a new list:      c\n"
+			.ascii "\tTo delete a list:          d <list>\n"
+			.ascii "\tTo find a key in a list:   f <key> <list>\n"
+			.ascii "\tTo generate a random list: g"
+			.ascii "\tTo show this help menu:    h OR ?\n"
+			.ascii "\tTo insert a key:           i <key> <list>\n"
+			.ascii "\tTo show all active lists:  l\n"
+			.ascii "\tTo dump memory contents :  m\n"
+			.ascii "\tTo print a list:           p <list> OR < list range > OR * \n"
+			.ascii "\tTo quit:                   q\n"
+			.asciz "\tTo remove a key:           r <key> <list>\n\n"
 
 .align 8 @ helps debugging
 CommandBranch: @ jump table with addresses to be loaded directly to PC based on
@@ -74,7 +75,7 @@ CommandBranch: @ jump table with addresses to be loaded directly to PC based on
 .word DeleteList+1 @ 'd' command
 .word InputError+1 @ 'e'
 .word SearchList+1 @ 'f' comand
-.word InputError+1 @ 'g'
+.word GenerateRandList+1 @ 'g'
 .word HelpUser+1 @ 'h' command 
 .word InsertKey+1 @ 'i' command 
 .rept 'l'-'i'-1 @ until we get to 'l'
@@ -193,6 +194,13 @@ SearchList:
 	b QueryUser
 SearchListMsg: .asciz "Searching list\n"
 .align
+
+GenerateRandList:
+
+	
+
+	b QueryUser
+GenerateRandListMsg: .asciz "Generating random list\n"
 
 HelpUser:
 	ldr r0, =UsageMsg

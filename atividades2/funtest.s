@@ -5,7 +5,7 @@
 .align
 .macro ReverseEndianess reg_to_swap, scratch_reg
 	ror \reg_to_swap, 8
-	ands \scratch_reg, \reg_to_swap, 0x00FF00FF
+	ands \scratch_reg, \reg_to_swap, 0x00FF00FF @ this is a valid immediate constant according to cortex m3 manual
 	bics \reg_to_swap, 0x00FF00FF
 	orrs \reg_to_swap, \reg_to_swap, \scratch_reg, ror 16
 .endm
