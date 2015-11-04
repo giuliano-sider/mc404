@@ -1,0 +1,278 @@
+
+
+The Test Module
+
+A lean user interface module that can be gobbles up a table of application programmer provided data and delivers a basic user experience for testing libraries, etc.
+Optional (pointers to) functions and messages can be made NIL. The only mandatory one is the default command handler function.
+
+What it does:
+
+1. initial welcome msg. initialization function (with arguments)
+2. final goodbye message. clean up function (with arguments)
+3. Table of menu commands and associated
+	a) Additional prompt message
+	b) Inputs to read from stdin
+	c) Validation functions for each of the inputs
+	d) Function to call (with the inputs)
+
+
+
+How to use it:
+
+Fill out the TestLoop structure.
+Call the MainTestLoop function with a pointer to that structure.
+
+typedef struct TestLoop {
+	const char *welcomemsg;
+	void (*welcomefunc) (void * applicationdata); 
+	const char *promptmsg;
+
+	const char *exitmsg;
+	void (*exitfunc) ( void * applicationdata, void *returnval );
+	void *returnval; // struct of return values: returned by MainTestLoop, passed to exitfunc
+
+	void *applicationdata; // structure with necessary data for the handlers, including state of the main loop test application, or even outside of it, as required by the user.
+	// default command is the first one in the list
+	struct Command *commands; // array of commands to insert in the hash table of commands for the test module (hash table is internal to the implementation of MainTestLoop). last command in NIL.
+
+} TestLoop;
+
+typedef struct command { // extra indirection so that multiple strings may point to the same command (not just the default command)
+	
+	const char *commandstr; // this information will be entered into the MainTestLoop's hash table
+	struct CommandInfo *cinfo;
+
+} Command;
+
+typedef struct CommandInfo {
+	
+	char *cmdprompt;
+	char *inputscanstr;
+	int numinputs;
+	void **inputs; // array of addresses of places where input will be read into
+	int (**inputvalidationfuncs) ( void *applicationdata, void * input ); // array of pointers to validation functions for each input. if they all return 0, cmdhandler is called. if not, error code will indicate the index of failuremsg to be printed.
+	char **failuremsg; // failure message for the inputs, indexed by returned error code
+	void (*cmdhandler) (void *applicationdata, void **inputs, );
+
+} CommandInfo;
+
+// whenever void * appears, we have an aspect of the interface that the user will flesh out,   // like the libc version of qsort.
+
+void *MainTestLoop (TestLoop *info);
+
+
+
+
+EXAMPLE OF USAGE: Linked List / Hash Table implementation of sets --> the great test application
+(we'll draw the memory layout of the struct in GNU assembler syntax, then we can begin to code the function(s) that implement this module given the data structure passed in)
+
+LL_HT_Sets_TestApp: @ test loop structure to be passed to MainTestLoop
+
+	.asciz "Welcome to RealTime: Fun with Dynamic Sets\n"
+	.word Init @ "Welcome function": initializes the 2 sets (hash tables) that will keep linked lists and hash tables, respectively
+	.asciz "> " @ prompt message
+	
+	.asciz "Thank you for testing our hash table and linked list libraries. Hope you had loads of fun with sets\n"
+	ExitFunc: .word Quit @ address of function that cleans up and makes TestLoop exit.
+	ReturnVal: .word 0 @ nothing to return to, really, this process is just the test application with the command loop and that's it.
+
+	ApplicationData: .word Table1 @ 2 hash tables with application data in this test: 1 with the hash tables and one with the linked lists.
+	Commands: .word UserCommands @ table of user commands that can be used in the test application
+
+
+UserCommands: @ array of commands that the user may enter in out test application
+	.byte 0 @ this is the default command, marked with an empty string
+	.word InputErrorCmdInfo 
+	
+	.asciz "makeset"
+	.word MakeSetCmdInfo
+
+	.asciz "make"
+	.word MakeSetCmdInfo
+
+	.asciz "newset"
+	.word MakeSetCmdInfo
+
+	.asciz "m"
+	.word MakeSetCmdInfo
+
+	.asciz "delete"
+	.word DeleteSetCmdInfo
+
+	.asciz "d"
+	.word DeleteSetCmdInfo
+
+	.asciz "deleteset"
+	.word DeleteSetCmdInfo
+
+	.asciz "delset"
+	.word DeleteSetCmdInfo
+
+	.asciz "eraseset"
+	.word DeleteSetCmdInfo
+
+	.asciz "killset"
+	.word DeleteSetCmdInfo
+
+	.asciz "quit" 
+	.word QuitCmdInfo
+
+	.asciz "q" 
+	.word QuitCmdInfo
+
+	.asciz "exit" 
+	.word QuitCmdInfo
+
+	.asciz "findkey"
+	.word FindKeyCmdInfo
+
+	.asciz "find"
+	.word FindKeyCmdInfo
+
+	.asciz "search"
+	.word FindKeyCmdInfo
+
+	.asciz "whereiskey"
+	.word FindKeyCmdInfo
+
+	.asciz "f"
+	.word FindKeyCmdInfo
+
+	.asciz "randset"
+	.word GenerateRandSetCmdInfo
+
+	.asciz "makerandset"
+	.word GenerateRandSetCmdInfo
+
+	.asciz "randomset"
+	.word GenerateRandSetCmdInfo
+
+	.asciz "generaterandset"
+	.word GenerateRandSetCmdInfo
+
+	.asciz "genrandset"
+	.word GenerateRandSetCmdInfo
+
+	.asciz "g"
+	.word GenerateRandSetCmdInfo
+
+	.asciz "h"
+	.word HelpUserCmdInfo
+
+	.asciz "help"
+	.word HelpUserCmdInfo
+
+	.asciz "?"
+	.word HelpUserCmdInfo
+
+	.asciz "usage"
+	.word HelpUserCmdInfo
+
+	.asciz "i" 
+	.word, InsertKeyCmdInfo
+
+	.asciz "insert" 
+	.word, InsertKeyCmdInfo
+
+	.asciz "insertkey" 
+	.word, InsertKeyCmdInfo
+
+	.asciz "showsets"
+	.word ShowSetsCmdInfo
+
+	.asciz "listsets"
+	.word ShowSetsCmdInfo
+
+	.asciz "show"
+	.word ShowSetsCmdInfo
+
+	.asciz "list"
+	.word ShowSetsCmdInfo
+
+	.asciz "s"
+	.word ShowSetsCmdInfo
+
+	.asciz "m"
+	.word MemoryDisplayCmdInfo
+
+	.asciz "memdisplay"
+	.word MemoryDisplayCmdInfo
+
+	.asciz "memory"
+	.word MemoryDisplayCmdInfo
+
+	.asciz "memshow"
+	.word MemoryDisplayCmdInfo
+
+	.asciz "printset"
+	.word PrintSetCmdInfo
+
+	.asciz "print"
+	.word PrintSetCmdInfo
+
+	.asciz "p"
+	.word PrintSetCmdInfo
+
+	.asciz "removekey"
+	.word RemoveKeyCmdInfo
+
+	.asciz "remove"
+	.word RemoveKeyCmdInfo
+
+	.asciz "r"
+	.word RemoveKeyCmdInfo
+
+InputErrorCmdInfo:
+	InputErrorMsg: .asciz "bad command. press 'h' to view USAGE message\n"
+	InputErrorScanStr: .byte 0 @ no scan string: empty string
+	.word 0 @ zero inputs to be read
+	.word 0 @ inputs array empty
+	.word 0 @ no input validation functions
+	.word 0 @ no failure messages necessary
+	.word 0 @ no command handler necesary: we just wanted to print that message
+
+MakeSetCmdInfo:
+	.asciz "new set: hash table or linked list? (h/l)\n"
+	.asciz " %c"
+	.word 1 @ one input to be read
+	.word SetHTorLL @ input to read
+	.word SelectHTorLL @ validate input
+	.asciz "This application only supports hash tables and linked lists (h/l)\n" @ failure message 1
+	.word MakeSetHandler @ function that handles set creation for the application
+
+	SetHTorLL: .word 0
+
+DeleteSetCmdInfo:
+	.asciz "delete set: hash table or linked list? (h/l), set id (#)\n"
+	.asciz " %c %i"
+	.word 2 @ 2 inputs to be read
+	.word SetHTorLL @ input to read
+	.word SetID
+	.word SelectHTorLL @ validate input
+	.word IsValidSet
+	.asciz "This application only supports hash tables and linked lists (h/l)\n" @ failure message 1
+	.asciz "Set ID is not valid set"
+	.word DeleteSetHandler @ function that handles set creation for the application
+
+
+
+// application specific data accessible here
+Table1: .word LLSet
+Table2: .word HTSet
+
+LLSet: @ statically allocated hash table to store sets in this application 
+
+
+HTSet: @ statically allocated hash table to store sets in this application
+
+
+void (*welcomefunc) (void * applicationdata);
+void (*exitfunc) ( void * applicationdata, void *returnval );
+int (**inputvalidationfuncs) ( void *applicationdata, void ** inputs );
+void (*cmdhandler) (void *applicationdata, void **inputs, );
+
+
+
+
+
+

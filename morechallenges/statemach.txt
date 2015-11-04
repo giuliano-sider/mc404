@@ -1,0 +1,52 @@
+State Machine o'rama >>>
+
+use
+1. a table with possible inputs as columns and states as rows. Each entry has the state towards which you must transition. This will cause a transition from the current state to the (possibly same) new state. Then the state i to state j transition function will be called from 
+2. a table with all state pairs.
+
+When printf is called, the FSM for reading the format string is invoked:
+
+FSM_readformatstr ( outputfunc, formatstr, argstr )
+	Initialize_FSM_readformatstr( state_variables )
+	while state != finished
+		input = formatstr[i]
+		nextstate = StateTable[state, input]
+		f = TransitionFunc[state, nextstate]
+	Finish_FSM_readformatstr( state_variables )
+
+
+Initialize_FSM_readformatstr( state_variables )
+	state_variables.i = 0 @ index for reading the format string
+	static StateTable = { ... }
+
+return
+
+Finish_FSM_readformatstr( state_variables )
+
+return state_variables.totalcharsprinted
+
+
+
+printf ( outputfunc, formatstr, argstr )
+
+	ReadFormatString // same scope
+	return printedchars
+
+
+ReadFormatString:
+
+	flags = none
+	specifier = none
+	width = 0
+	lengthspec = 4 // default conditions
+	state = readformatstring
+
+	while formatstr[i] != 0 // while string is not exhausted
+
+		f_index = TableFunc[state, formatstr[i]]
+		call Functions[f_index]
+return
+
+TO DO
+1. complete branch table
+2. write high level, short, modularized code for the functions in the branch table.

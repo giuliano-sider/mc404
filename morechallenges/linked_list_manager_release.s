@@ -57,7 +57,7 @@ OUTPUT:
 SIDE EFFECTS: takes a list header and deletes all the nodes (but not the header)
 NOTE: used before deleting a list (header)
 
-FUNCTION: LinkedListDeleteNext: @ LLDNext(List *header, List *current, List *next) // deletes next node
+FUNCTION: LinkedListDeleteNext: @ LLDNext(List *header, List *current, List *next)
 INPUT: r0 = > pointer to header of the linked list, r1 = > pointer to list node
        r2 = > pointer to node after the one in r1.
 OUTPUT: 
@@ -103,7 +103,7 @@ SIDE EFFECTS: returns addresses of the list node that is bigger than or equal to
 			  and its preceding element in an XOR linked list.
 NOTE: it effectively returns the tail of the list and NULL if the key is not found
 
-FUNCTION: FreeStoreRetrieve: @ List* FreeStoreRetrieve(List **freestorehead) : returns allocated list, or NULL if there is no space
+FUNCTION: FreeStoreRetrieve: @ List* FreeStoreRetrieve(List **freestorehead)
 INPUT: r0 = > pointer to the address of a freestore of lists
 OUTPUT: r0 = > pointer to newly allocated element, or NULL if the freestore is empty.
 SIDE EFFECTS: Sets the head of the freestore to the next available element.
@@ -117,7 +117,7 @@ NOTE: can be used for both list node and list header freestores: same structure.
 using the list header freestore in this application, the user should return the unique id
 to the key attribute of the returned list header.
 
-FUNCTION: IsListFreeStoreEmpty: @ ILFSEmpty (List **freestorehead), returns 1 if FS is empty, 0 otherwise
+FUNCTION: IsListFreeStoreEmpty: @ ILFSEmpty (List **freestorehead)
 INPUT: r0 = > pointer to the address of a freestore of lists
 OUTPUT: r0 = > 1 if freestore is empty, 0 otherwise
 SIDE EFFECTS:
@@ -151,7 +151,7 @@ QueryUser:
 	add lr, 1 @ must set the THUMB bit
 	tbh [r2, r1, lsl 1] @ load the appropriate jump address to handle the user's command 
 						@(directly addressed by ascii code)
-						
+
 /******************* LinkedListManager test module functions *********************/
 Quit:
 	ldr r0, =GoodbyeMsg
@@ -159,10 +159,11 @@ Quit:
 	mov r0, 0
 bl exit
 
-CreateList: @ creates an empty list and returns its identifier (index to be used in our application array)
-push { lr }
+CreateList: @ creates an empty list and returns its identifier
+push { lr }  								@ (index to be used in our application array)
 	ldr r0, =ListHeaderFreeStoreHead @ retrieve a header (comes with a unique id) for a new list
-	bl FreeStoreRetrieve @ same function for both types of freelist we use in this application: they have the same structure
+	bl FreeStoreRetrieve @ same function for both types of freelist we use in this application:
+							@ they have the same structure
 	cbz r0, ListFreeStoreIsEmpty // if it returns NULL then there is no space for a new list
 	mov r2, 0
 	str r2, [r0, 4] @ new_list->head = NULL @ list is empty
@@ -196,9 +197,11 @@ push { r6-r7, lr }
 	mov r7, r0 @ save index here so we can print it later
 	mov r0, r6 @ call LinkedListDeleteNodes(listheader) from linked list library
 	bl LinkedListDeleteNodes @ empties list, leaving only the header
-	str r7, [r6] @ first field of list header receives id (for the list header freestore service used in this application)
+	str r7, [r6] @ first field of list header receives id 
+					@ (for the list header freestore service used in this application)
 	ldr r0, =ListHeaderFreeStoreHead @ FreeStoreReturn(fs_head, listheader)
-	mov r1, r6 @ return list header to our application's list header free store (with its unique id back in place)
+	mov r1, r6 @ return list header to our application's list header free store 
+				@ (with its unique id back in place)
 	bl FreeStoreReturn @ from the freestore thou cometh, to the freestore thou shalt return
 	ldr r0, =DeleteListMsg
 	mov r1, r7 @ index of list that was deleted
@@ -404,20 +407,27 @@ InputErrorMsg: .asciz "bad command. press 'h' to view USAGE message\n"
 SuccessfulRemoveKeyMsg: .asciz "Key %i successfully removed in list %i\n"
 UnSuccessfulRemoveKeyMsg: .asciz "Key %i does not belong to list %i\n"
 PrintListMsg: .asciz "Printing list %i\n"
-MemoryMapMsg1: .asciz "Showing list header free store\nHeader at %08X with id %i and next pointer %08X\n"
-MemoryMapMsg2: .asciz "Showing list node free store\nHeader at %08X with content %i and next pointer %08X\n"
+MemoryMapMsg1: .ascii "Showing list header free store\nHeader at %08X with"
+			   .asciz " id %i and next pointer %08X\n"
+MemoryMapMsg2: .ascii "Showing list node free store\nHeader at %08X with"
+			   .asciz " content %i and next pointer %08X\n"
 ShowListsMsg: .asciz "Showing list %i:\n"
 SuccessfulInsertKeyMsg: .asciz "Key %i successfully inserted in list %i\n"
-FreeStoreEmptyOnInsertionMsg: .asciz "Could not insert key %i in list %i because list node freestore is empty\n"
-KeyAlreadyInListMsg: .asciz "Could not insert key %i in list %i because key already belongs to list\n"
+FreeStoreEmptyOnInsertionMsg: .ascii "Could not insert key %i in list %i"
+			   .asciz " because list node freestore is empty\n"
+KeyAlreadyInListMsg: .ascii "Could not insert key %i in list %i because key"
+			   .asciz " already belongs to list\n"
 GenerateRandListMsg: .asciz "Generated random list with id %i\n"
 SuccessfulSearchListMsg: .asciz "The key %i was found in the list %i\n"
 UnSuccessfulSearchListMsg: .asciz "The key %i was not found in list %i\n"
 DeleteListMsg: .asciz "Deleting list number %i\n"
-ListDoesNotExistMsg: .asciz "The list you have requested does not exist. press 'l' for a full listing\n"
+ListDoesNotExistMsg: .ascii "The list you have requested does not exist."
+			   .asciz " press 'l' for a full listing\n"
 CreateListMsg: .asciz "Creating new list with id %i\n"
-NoSpaceForListMsg: .asciz "There is not enough space for a new list: maximum of %i reached. delete a list and try again\n"
-ListOutOfBoundsMsg: .asciz "The list id you have provided is out of bounds for this application\n"
+NoSpaceForListMsg: .ascii "There is not enough space for a new list: maximum of %i"
+				.asciz " reached. delete a list and try again\n"
+ListOutOfBoundsMsg: .ascii "The list id you have provided is out of bounds"
+				.asciz " for this application\n"
 PrintEmptyList: .asciz "<empty>\n"
 PrintListKeyStr: .asciz "%i "
 QueryString1: .asciz " %c" @ read command character
@@ -484,9 +494,12 @@ push { r4-r6, lr }
 	bl rand @ 32 bit (pseudo) random integer at r0
 	sub range, high_bound, low_bound
 	add range, 1 @ high_bound - low_bound + 1 is the size of desired interval
-	udiv q, r0, range @ q = floor ( rnd / range ). REFRESHER: UDIV {Rd}, Rm, Rn. Rd := Rm / Rn
-	mls r0, q, range, r0 @ rnd - q*range = remainder. REFRESHER: MLS {Rd}, Rm, Rn, Ra. Rd := Ra - Rm*Rn
-	add r0, low_bound @ now r0 has an integer plucked from a uniform [low_bound, high_bound] distribution
+	udiv q, r0, range @ q = floor ( rnd / range ). 
+						@ REFRESHER: UDIV {Rd}, Rm, Rn. Rd := Rm / Rn
+	mls r0, q, range, r0 @ rnd - q*range = remainder. 
+							@ REFRESHER: MLS {Rd}, Rm, Rn, Ra. Rd := Ra - Rm*Rn
+	add r0, low_bound 
+	@ now r0 has an integer plucked from a uniform [low_bound, high_bound] distribution
 pop { r4-r6, pc }
 
 ObtainUserInputList: @ returns in r0 a valid (within bounds) list id obtained from user
@@ -540,8 +553,8 @@ XORLinkedListPrintEmpty:
 	bl printf
 pop { r4-r6, pc }
 
-LinkedListPrint: @ LLPrint( List * header) @ this is for printing the freestores, which are not XOR linked
-push { r4-r6, lr }
+LinkedListPrint: @ LLPrint( List * header)
+push { r4-r6, lr } @ this is for printing the freestores, which are not XOR linked
 	ldr r4, [r0, 4] @ load the np (always next for the header) pointer
 	mov r5, r0 @ keep current node here
 LinkedListPrintLoop:
@@ -557,8 +570,8 @@ LinkedListPrintDone:
 	addlinebreak @ calls putchar('\n')
 pop { r4-r6, pc }
 
-LinkedListDeleteNodes: @ void LLD(List* header) : takes a list header and deletes all the nodes (not the header)
-push { r4-r5, lr }
+LinkedListDeleteNodes: @ void LLD(List* header)
+push { r4-r5, lr }	@ takes a list header and deletes all the nodes (not the header)
 	mov r4, r0 @ r4 = header (which is not NULL)
 EmptyOutLinkedList:
 	ldr r5, [r4, 4] @ load next node pointer (not an 'np' value for header)
@@ -611,7 +624,7 @@ push { r4-r5, lr } @ r5 -> list header, r4 -> key to insert, r6 -> pred node, r7
 	mov r4, r1 @ keep key here
 	mov r5, r0 @ keep list header here
 	bl LinkedListFindKeyPosition @ returns (predecessor_node, key_node_pos) -> (r0, r1)
-	cbz r1, InsertKeyInLinkedList @ if key_node is NULL, insertion happens (at the tail, in fact)
+	cbz r1, InsertKeyInLinkedList @ if key_node is NULL,insertion happens(at the tail, in fact)
 	ldr r2, [r1] @ load r2 = key_node_pos.key
 	cmp r2, r4 @ does the key actually belong to the list?
 	beq KeyAlreadyInListOrAllocationFailure
@@ -752,15 +765,16 @@ ListHeaderFreeStore:
 .rept LISTHEADERFREESTORESIZE
 	.word fillvalue
 	.word freestorenext
-	.equ fillvalue, fillvalue+1 // these will be used as list identifiers (and indices for our array in this application)
+	.equ fillvalue, fillvalue+1 @ these will be used as list identifiers 
+								@ (and indices for our array in this application)
 	.equ freestorenext, freestorenext+8
 .endr
 .word fillvalue
 .word 0 @ this is the empty freestore sentinel node
-ListHeaderFreeStoreHead: .word ListHeaderFreeStore @ head of free store maintained by the memory manager
+ListHeaderFreeStoreHead: .word ListHeaderFreeStore 
+	@ head of free store maintained by the memory manager
 
-// last but not the least, the free store service 
-// for list nodes used by the linked list library
+@last but not the least, the free store service for list nodes used by the linked list library
 .equ fillvalue, 0 @ count up from 0 for the default keys
 .equ LISTNODEFREESTORESIZE, 4096 @ 4096 units ->
 ListNodeFreeStore:
@@ -773,5 +787,5 @@ ListNodeFreeStore:
 .endr
 .word fillvalue
 .word 0 @ this is the empty freestore sentinel node
-ListNodeFreeStoreHead: .word ListNodeFreeStore @ head of free store maintained by the memory manager
-
+ListNodeFreeStoreHead: .word ListNodeFreeStore 
+@ head of free store maintained by the memory manager

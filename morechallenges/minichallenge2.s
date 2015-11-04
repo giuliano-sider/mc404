@@ -38,7 +38,7 @@ ReturnFromRandInt:
 
 Prompt: .asciz "enter 2 integers, low and high\n"
 Input: .asciz " %i %i"
-Output: .asciz "here is a uniformly distributed integer plucked from the range [low, high]\n%i\n"
+Output: .asciz "here is a random integer plucked from the range [low, high]\n%i\n"
 
 .align
 RandInt: @ int RandInt(int low_bound, int high_bound) 
@@ -52,9 +52,12 @@ push { r4-r6 } @ return address left on the stack until the repairman comes
 	bl rand @ 32 bit (pseudo) random integer at r0
 	sub range, high_bound, low_bound
 	add range, 1 @ high_bound - low_bound + 1 is the size of desired interval
-	udiv q, r0, range @ q = floor ( rnd / range ). REFRESHER: UDIV {Rd}, Rm, Rn. Rd := Rm / Rn
-	mls r0, q, range, r0 @ rnd - q*range = remainder. REFRESHER: MLS {Rd}, Rm, Rn, Ra. Rd := Ra - Rm*Rn
-	add r0, low_bound @ now r0 has an integer plucked from a uniform [low_bound, high_bound] distribution
+	udiv q, r0, range @ q = floor ( rnd / range ). 
+						@ REFRESHER: UDIV {Rd}, Rm, Rn. Rd := Rm / Rn
+	mls r0, q, range, r0 @ rnd - q*range = remainder. 
+						@ REFRESHER: MLS {Rd}, Rm, Rn, Ra. Rd := Ra - Rm*Rn
+	add r0, low_bound @ now r0 has an integer plucked from a 
+						@ uniform [low_bound, high_bound] distribution
 pop { r4-r6 }
 pop { pc } @ link register still at the doctor's office; grab return address from stack
 

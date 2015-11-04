@@ -1,0 +1,173 @@
+The Linked List Strikes Back
+
+// What follows is a lean implementation of a singly linked list starting with a sentinel node
+// depends on a free store service. XOR list => may blow your mind
+// note: 19 references to 'next' would have to be changed to turn this into an XOR list.      // plus, the 'FindKeyPosition' function would have to return 2 pointers, prev and pos nodes.
+// and don't forget to maintain the tail pointer at the sentinel. Swapping head and tail at   // the sentinel effectively reverses the list (but keys will be in decreasing order then)
+
+typedef struct List {
+	int key;
+	struct List *np;
+} List;
+
+FUNCTION:  LLCreateList @ List *LLCreateList ()
+INPUT:
+OUTPUT: r0 = > pointer to newly created list, or NIL it it couldn't be created
+SIDE EFFECTS: Obtains a new list (a sentinel node) from the list freestore and returns a pointer to it. 
+NOTE: Must maintain pointer to the sentinel node for the duration of the list's existence.
+
+List *LLCreateList ()
+	l = FreeStoreRetrieve( ListNodeFreeStoreHead )
+	if l == NIL
+		return NIL // no list obtained: the freestore is empty
+	l.next = NIL // l.next === l.np for header (sentinel) nodes
+	l.key = 0 // could be used as a tail pointer for an XOR list
+	return l
+End Function
+
+
+FUNCTION: LLDeleteOrderedList: @ int LLDeleteOrderedList ( List * l )
+INPUT: r0 = > pointer to head of linked list
+OUTPUT: r0 = > 0 signals successful deletion, -1 otherwise. r1 = > pointer to error message if the routine is unsuccessful.
+SIDE EFFECTS: Deletes all the nodes of a list, returning them to the freestore
+NOTE: Assumes a list ordered by increasing keys.
+
+int LLDeleteOrderedList ( List * l )
+	if l == NIL
+		Error: "no list has been passed"
+		return -1 // unsuccessful deletion
+	nextnode = l.np // next is np for header
+	while nextnode != NIL
+		LLRemoveOrderedKey ( l, nextnode, NULL ) // delete l.next, returning it to the freestore
+	FreeStoreReturn ( ListNodeFreeStoreHead, l )
+	return 0 // successful deletion
+End Function
+	
+
+FUNCTION: LLRemoveOrderedKey: @ int LLRemoveOrderedKey ( List * l, int key, List **node )
+INPUT: r0 = > pointer to head of linked list, r1 = > 32 bit integer key to be removed from the list, r2 = > pointer to node that is made to point to the removed item. if NIL, the node with the removed key is actually deleted by being returned to the freestore.
+OUTPUT: r0 = > 0 signals successful removal, -1 otherwise (no list, no key). r1 = > pointer to error message if the routine is unsuccessful.
+SIDE EFFECTS: Removes the node with the specified key from the list. If the third argument is NIL, the node is deleted by returning it to the freestore.
+NOTE: Assumes a list ordered by increasing keys.
+
+int LLRemoveOrderedKey ( List * l, int key, List **node )
+	if l == NIL
+		Error: "no list has been passed"
+		return -1
+	(nodebeforedeletion, nodedeletion) = LLFindOrderedKeyPosition ( l, key )
+	if nodedeletion == NIL || nodedeletion.key != key
+		Error: "key not found"
+		return -1
+	nodeafterdeletion = nodebeforedeletion XOR nodedeletion.np
+	nodebeforedeletion.np = nodebeforedeletion.np XOR nodedeletion XOR nodeafterdeletion
+	if nodeafterdeletion != NIL
+		nodeafterdeletion.np = nodeafterdeletion.np XOR nodedeletion.np XOR nodebeforedeletion
+	else
+		l.key = nodebeforedeletion // we have a new tail to the list
+	if node == NIL
+		FreeStoreReturn ( ListNodeFreeStoreHead, nodedeletion )
+	else 
+		*node = nodedeletion
+	return 0
+End Function
+
+
+FUNCTION: LLFindOrderedKeyPosition: 
+@ List* LLFindOrderedKeyPosition ( List * l, int key )
+INPUT: r0 = > pointer to head of linked list, r1 = > 32 bit integer key to be found in the list
+OUTPUT: r0 = > pointer to the first node of the list whose next node has a key >= to key passed as a parameter, or node whose next is NIL if no such key is found. r1 = > pointer to first node whose key is >= to key passed as parameter, or NIL if no such key is found
+SIDE EFFECTS:
+NOTE: Assumes a list ordered by increasing keys.
+
+List* LLFindOrderedKeyPosition ( List * l, int key )
+	if l == NIL 
+		return NIL // Error: "no list passed"
+	currentnode = l
+	nextnode = l.next // l.np === l.next
+	while nextnode != NIL
+		if nextnode.key >= key
+			return ( currentnode, nextnode )
+		t = currentnode
+		currentnode = nextnode
+		nextnode = nextnode.np XOR t
+	return ( currentnode, nextnode )
+End Function
+
+FUNCTION: LLFindOrderedKey: 
+@ int LLFindOrderedKey ( List * l, int key )
+INPUT: r0 = > pointer to head of linked list, r1 = > integer key to be found in the list
+OUTPUT: r0 = > 0 if key belongs to list, -1 otherwise
+SIDE EFFECTS:
+NOTE: Assumes a list ordered by increasing keys.
+
+int LLFindOrderedKey ( List * l, int key )
+	if l == NIL
+		return -1 // error: "no list passed"
+	(nodebeforekey, nodekey) = LLFindOrderedKeyPosition ( l, key )
+	if nodekey == NIL || nodekey.key != key
+		return -1
+	return 0
+End Function
+
+FUNCTION: LLInsertOrderedKey: 
+@ List* LLInsertOrderedKey ( List * l, int key, List **node )
+INPUT: r0 = > pointer to head of linked list, r1 = > integer key to be found in the list,   r2 = > pointer to node that is inserted at the appropriate spot after being loaded with key; if NIL, the node to be inserted with key is actually allocated from the freestore.
+OUTPUT: r0 = > pointer to inserted node, or NIL if insertion fails. r1 = > pointer to failure message
+SIDE EFFECTS: A node is allocated from the freestore if node is NIL. Node is inserted, with key, at the proper position in the list.
+NOTE: Assumes a list ordered by increasing keys.
+
+List* LLInsertOrderedKey ( List * l, int key, List **node )
+	if l == NIL
+		Error "no list given"
+		return NIL
+	(beforeinsert, afterinsert) = LLFindOrderedKeyPosition( l, key )	
+	if afterinsert != NIL && afterinsert.key == key
+		error: "key already belongs to list"
+		return NIL
+	if node == NIL
+		node = FreeStoreRetrieve ( ListNodeFreeStoreHead )
+		if node == NIL
+			error "failed to allocate"
+			return NIL
+	node.key = key
+	if afterinsert == NIL
+		l.key = node // update tail pointer of the list
+	else
+		afterinsert.np = afterinsert.np XOR beforeinsert XOR node
+	node.np = beforeinsert XOR afterinsert // if this NIL you could update tail if necessary
+	beforeinsert.np = beforeinsert.np XOR afterinsert XOR node
+	return node // we blithely ignore typing in pseudo code (and assembly, for that matter)
+End Function
+
+// free store service:
+
+FUNCTION: FreeStoreRetrieve 
+@ List* FreeStoreRetrieve ( List ** freestorehead )
+INPUT: r0 = > (address of) pointer to head of freestore
+OUTPUT: r0 = > pointer to retrieved node or NIL if allocation is not possible.
+SIDE EFFECTS: A node is allocated from the freestore if freestore not empty. Head is made to point to the next available item (or the end sentinel if none is available)
+NOTE: Freestore items have the same structure as the list nodes
+
+List* FreeStoreRetrieve ( List ** freestorehead )
+	if (*freestorehead).next == NIL
+		return NIL // sentinel node detected: free store empty
+	node = *freestorehead
+	*freestorehead = node.next
+
+End Function
+
+
+FUNCTION: FreeStoreReturn
+@ FreeStoreReturn ( List ** freestorehead, List * node)
+INPUT: r0 = > (address of) pointer to head of freestore, r1 = > node to be deleted
+OUTPUT:
+SIDE EFFECTS: A node is deleted by returning it to the freestore.
+NOTE:
+
+FreeStoreReturn ( List ** freestorehead, List * node)
+	if node != NIL
+		node.next = *freestorehead
+		freestorehead = node
+
+End Function
+

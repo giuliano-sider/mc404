@@ -1,5 +1,5 @@
 /************ MC404C, Giuliano Sider, 20/10/2015 *************
-*** Atividade Desafio (MINI CHALLENGE 2)
+*** Atividade Desafio (MINI CHALLENGE 3)
 We implement a simple macro to emulate the bfi instruction, but with a difference:
 the least significant bit and width of bitfield do not have to be compile time constants:
 they can be arbitrary registers.
