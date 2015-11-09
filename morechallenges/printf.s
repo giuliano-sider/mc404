@@ -56,8 +56,8 @@ pop { r0-r12, pc }
 
 .data
 .align
-.equ bufsize_format, 1024 @ should be enough for testing purposes
-.equ bufsize_argument, 1024
+.equ bufsize_format, 1024 @ store user inputted format string: should be enough for testing purposes
+.equ bufsize_argument, 1024 @ store user inputted argument string: should be enough for testing purposes
 
 FormatString: 
 .rept bufsize_format
@@ -78,7 +78,7 @@ ArgumentString:
 
 
 Pseudo Code for mitigating psychological torture during the assembly coding process:
-
+/**************
 in C:
 int printf ( int (*outputfunc) (const char *), const char *formatstr, const char *argstr);
 
@@ -94,7 +94,7 @@ arg str := string containing comma separated list of arguments. whitespace is ig
 argument := [ '[' ] <reg>|<const> [+- <reg>|<const> [lsl <reg>|<const>]] [ "]" ]
 reg := r0|r1| ... r15 @ but not lr==r14
 const := [0x|0]<digits>
-
+***************/
 printedchars = 0 // characters actually flushed via outputfunc
 i = 0 @ index along the FormatString, next character to be read
 j = 0 @ index along the argument string, next character to be read
@@ -267,7 +267,7 @@ while formatstr[i] != 0
 
 	else if state == readformatarg
 
-		value = ObtainValueFromNextArg( lengthspec ) // already comes dereferenced in the case of [] in the argstr
+		value = ObtainValueFromNextArg( lengthspec ) // !!already comes !no! dereferenced!! in the case of [] in the argstr
 		valuelength = ceil(lengthspec/4)
 // value is a vector of ceil(lengthspec/4) words in memory containing the value to be formatted according to the specifiers
 		outputstring = empty
