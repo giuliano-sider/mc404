@@ -1,0 +1,129 @@
+Pseudo Code for the non bastardized version of the printf_baremetal state machine:
+
+
+int printf_baremetal ( int (*outputfunc) (const char *) ,  const char *formatstr, const char *argstr )
+
+	// branch on character. then branch on state (nice short little table)
+
+	Catalog(ue) of states: ((for the format string))
+		readformatstr
+		readflags
+		readwidth
+		// readwidthnumber @ read the number 'asynchronously' instead (gobble it up when you detect a number in the field. simpler code that way. have a function 'ReadDecimalNumberFromString')
+		readlength
+		// readlengthnumber @ read the number 'asynchronously' instead (gobble it up when you detect a number in the field. simpler code that way. have a function 'ReadDecimalNumberFromString')
+		readspecifier
+
+	Special characters:
+		\0 -> 
+		(ok, a text editor wasn't made for this: excel chart)
+	Table:
+		noteworthy characters \ state
+			readformatstr	readflags	readwidth    readlength    readspecifier 
+		\0	
+		%
+		+
+		-
+		0
+space ' '
+		#
+		-
+		*
+		l
+		h
+		1
+		2
+		3
+		4
+		5
+		6
+		7
+		8
+		9
+		c
+		d
+		i
+		n
+		o
+		p
+		s
+		u
+		x
+		X
+	OTHER
+
+
+
+	Ano(u)ther catalog(o) of states: (whynot) ((for the argument string))
+		matchleftbracket
+		matcharg
+		matchsign
+		matchshift
+		matchrightbracket
+		matchend
+
+	Special characters:
+		\0 -> 
+		(ok, a text editor wasn't made for this: excel chart)
+	Table:
+		noteworthy characters \ state
+			matchleftbracket	matcharg	matchsign    matchshift    matchrightbracket matchend
+		\0
+		[
+		]	
+		,
+		+
+		-
+		l
+		s
+		r
+		p
+		0
+		1
+		2
+		3
+		4
+		5
+		6
+		7
+		8
+		9
+(whitespace)
+	OTHER
+		
+
+
+	InitPrintf:
+		i = 0
+		j = 0
+		state = readformatstr
+
+
+	switch (formatstr[i])
+
+		case \0
+			if state == readformatstr @ ok: we finished reading the string
+				goto FinishPrintf
+			else @ bad: finished in the middle of a specifier
+				error "premature end to the format string"
+			break
+
+		case %
+			if state == readformatstr
+				InitializeDefaultSpecifiers:
+					flags.+ = flags.' ' = flags.# = flags.0 = flags.- = false
+					width = 0
+					length = 4
+				state = readflags
+				i++
+
+			else if state == readformatspecifier
+				// optional: check errors for unnecessary specifiers associated with %
+				Print ( '%' )
+				state = readformatstr
+				i++
+			else
+				error "stray % character in format"
+
+
+
