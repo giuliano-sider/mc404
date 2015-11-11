@@ -94,20 +94,20 @@ Abbrevs
 	Table:
 		noteworthy characters \ state
 
-			matchleftbracket	matcharg	 matchsign    matchshift    matchrightbracket	matchend		TABLE
+			matchleftbracket	matcharg	 matchsign    matchshift    matchrightbracket		matchend			TABLE
 
-	   \0   Error0              Error0       FiniArgs     FiniArgs      IsBracketClosed     FiniArgs        ArgHandleNullOrComma
-		[	OpenBracket 		ErrorCharArg ErrorCharArg ErrorCharArg  ErrorCharArg        ErrorCharArg    ---
-		]	ErrorCharArg        ErrorCharArg FiniArgs     FiniArgs      FiniArgs            ErrorCharArg    ArgHandleBracket
-		,	Error0              Error0       FiniArgs     FiniArgs      IsBracketClosed     FiniArgs        ArgHandleNullOrComma
-		+   ErrorCharArg        ErrorCharArg SetPlusSign  ErrorCharArg  ErrorCharArg        ErrorCharArg    --- 
-		-   ErrorCharArg        ErrorCharArg SetMinusSign ErrorCharArg  ErrorCharArg        ErrorCharArg    ---
-		l   ArgLReg             ArgLReg      ErrorCharArg SetLeftShift  ErrorCharArg        ErrorCharArg    ArgHandleL 
-		s   ArgSReg             ArgSReg      ErrorCharArg ErrorCharArg  ErrorCharArg        ErrorCharArg    ---
-		r   ArgReg              ArgReg       ErrorCharArg ErrorCharArg  ErrorCharArg        ErrorCharArg    ---
-		p   ArgPReg             ArgPReg      ErrorCharArg ErrorCharArg  ErrorCharArg        ErrorCharArg    ---
-		0   HexOrOctalArg       HexOrOctalArg ErrorCharArg ErrorCharArg ErrorCharArg        ErrorCharArg    ---
-		1   DecimalArg          DecimalArg   ErrorCharArg ErrorCharArg  ErrorCharArg        ErrorCharArg    ---
+	   \0   Error0              Error0       IsBracketClosed IsBracketClosed IsBracketClosed  IsBracketClosed       ---
+		[	OpenBracket 		ErrorCharArg ErrorCharArg ErrorCharArg  ErrorCharArg        ErrorCharArg            ---
+		]	ErrorCharArg        ErrorCharArg CloseBracket CloseBracket  CloseBracket        ErrorCharArg            ArgHandleRightBracket
+		,	Error0              Error0       IsBracketClosed IsBracketClosed IsBracketClosed  IsBracketClosed       ---
+		+   ErrorCharArg        ErrorCharArg SetPlusSign  ErrorCharArg  ErrorCharArg        ErrorCharArg            --- 
+		-   ErrorCharArg        ErrorCharArg SetMinusSign ErrorCharArg  ErrorCharArg        ErrorCharArg            ---
+		l   ArgLReg             ArgLReg      ErrorCharArg SetLeftShift  ErrorCharArg        ErrorCharArg            ArgHandleL 
+		s   ArgSReg             ArgSReg      ErrorCharArg ErrorCharArg  ErrorCharArg        ErrorCharArg            ---
+		r   ArgReg              ArgReg       ErrorCharArg ErrorCharArg  ErrorCharArg        ErrorCharArg            ---
+		p   ArgPReg             ArgPReg      ErrorCharArg ErrorCharArg  ErrorCharArg        ErrorCharArg            ---
+		0   HexOrOctalArg       HexOrOctalArg ErrorCharArg ErrorCharArg ErrorCharArg        ErrorCharArg            ---
+		1   DecimalArg          DecimalArg   ErrorCharArg ErrorCharArg  ErrorCharArg        ErrorCharArg            ---
 		2
 		3
 		4
@@ -115,14 +115,18 @@ Abbrevs
 		6
 		7
 		8
-		9   DecimalArg          DecimalArg   ErrorCharArg ErrorCharArg  ErrorCharArg        ErrorCharArg    ---
-(whitespace) AbsorbWSP																						AbsorbWSP
-	OTHER  ErrorCharArg 																					ErrorCharArg
+		9   DecimalArg          DecimalArg   ErrorCharArg ErrorCharArg  ErrorCharArg        ErrorCharArg            ---
+(whitespace) AbsorbWSP																						        AbsorbWSP
+	OTHER  ErrorCharArg 																					        ErrorCharArg
 		
 
-		FiniArgs: goes to matchend, really, a state where only whitespace may be consumed until reaching a comma or \0.
-			Checks if bracket was closed (in case it was ever opened!)
-		FiniArgs falls through to IsBracketClosed.
+		FiniArgs: 
+			goes to matchend, really, a state where only whitespace may be consumed until reaching a comma or \0.
+		IsBracketClosed: 
+			Checks if bracket was closed (in case it was ever opened!) Then finishes up the function.
+		CloseBracket:
+			Closes bracket and goes to FiniArgs
+		
 		L: link register, logical shift left
 		S: sp
 		P: pc 
@@ -137,7 +141,7 @@ Abbrevs
 
 
 	PrematurelyFinishedArgumentStringMsg:
-		.asciz "Error: argument string terminated in the middle of a format specifier\n"
+		.asciz "Error: argument string terminated in the middle of an argument specifier\n"
 	.align
 
 

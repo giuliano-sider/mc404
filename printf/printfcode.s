@@ -14,6 +14,7 @@ push { r0-r12, lr } @ we keep track of sp. lr is pc. original lr is not availabl
 	mov regvar_j, 0 @ index for reading the argument string
 	mov regvar_printedchars, 0 @ zero chars printed so far
 	mov regvar_buffercount, 0 @ zero characters in the print buffer so far
+	ldr regvar_asciitable, =FormatStrAsciiTable @@@@ that might have to go below depending on register allocation. 
 
 ReadFormatString:
 

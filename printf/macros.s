@@ -93,11 +93,55 @@ PrintString @ string -> r0 ... r0-> string (echo)
 ObtainValueFromNextArg: 
 	@ argstring -> r0, index -> r1, length -> r2 ... ptr_to_arg -> r0, newindex -> r1
 
+	.equ matchleftbracket, 0
+	.equ matcharg, 1
+	.equ matchsign, 2
+	.equ matchshift, 3
+	.equ matchrightbracket, 4
+	.equ matchend, 5
+
+push {  regvar_argchar, regvar_arg_asciitable, regvar_argstate , regvar_argflags, regvar_args, regvar_arg, lr } 
+
+@ argflags: bit 0 (+ -), bit 1 (no [, [), bit 2 (no ], ]), 
+	mov regvar_argstate, readleftbracket @ initial state for reading the argument string.
+	mov regvar_argflags, 0 @ no square brackets, default offset is positive
+	mov regvar_arg, 0 @ read first argument 
+	ldr regvar_args, =ArgValue @ store arguments here for subsequent calculation
+	ldr regvar_arg_asciitable, =ArgAsciiTable 
+
+ReadArgumentString:
+
+ldrb regvar_argchar, [regvar_argumentstr===r0, regvar_j===r1] @ char = argumentstr[j]
+tbb [regvar_arg_asciitable, regvar_argchar] @ branch by ascii character to the right handlers
+
+@@@@
+	tbb [pc, regvar_argstate] @ (\0)
+	ArgHandleNullOrComma:
+	.byte (PrematurelyFinishedArgumentString-ArgHandleNullOrComma)/2
+	.byte (PrematurelyFinishedArgumentString-ArgHandleNullOrComma)/2
+	.byte (FiniArgs-ArgHandleNullOrComma)/2
+	.byte (PrematurelyFinishedArgumentString-ArgHandleNullOrComma)/2
+	.byte (PrematurelyFinishedArgumentString-ArgHandleNullOrComma)/2
+	.byte 0
+
+	FinishPrintf: @ (\0, readformatstr)
+		bl PrintBuffer @ prints out whatever is in our print buffer
+		@ mov regvar_returnval === r0, regvar_printedchars === r0
+		bl UnwindPrintfSuccess @@@@
+	PrematurelyFinishedArgumentString: @ (\0, not readformatstr)
+		ldr regvar_errmsg, =PrematurelyFinishedFormatStringMsg
+		bl UnwindPrintfOnError @@@@ unwind printf's stack, load error message at sp, return -1
 
 
 
+pop {  ,  lr }
 
-
+PrematurelyFinishedFormatString: @ (\0, not readformatstr)
+	ldr regvar_errmsg, =PrematurelyFinishedArgumentStringMsg
+	bl UnwindObtainValueOnError @@@@ unwind ObtainValue's stack, load error message at sp, return 0 (error)
+PrematurelyFinishedArgumentStringMsg:
+	.asciz "Error: argument string terminated in the middle of an argument specifier\n"
+.align
 
 
 
