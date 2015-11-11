@@ -20,37 +20,37 @@ int printf_baremetal ( int (*outputfunc) (const char *) ,  const char *formatstr
 
 		noteworthy characters \ state
 
-			readformatstr	readflags	readwidth    readlength    readspecifier 
+			readformatstr	readflags	readwidth    readlength    readspecifier 		TABLE_ENTRY
 
-		\0	FinishPrintf	Error0
-		%	BRFSpecifier    TPSpecifier
-		+   IncrPrintChar   PlusFlag    ErrorChar
-		-	IncrPrintChar   DashFlag    ErrorChar
-space ' '	IncrPrintChar   SpaceFlag   ErrorChar
-		#	IncrPrintChar   PoundFlag   ErrorChar
-		*	IncrPrintChar               WidthArg     ErrorChar
-		l   IncrPrintChar                            HandleLen     ErrorChar
-		h   IncrPrintChar                            HandleLen     ErrorChar
-		0	IncrPrintChar   ZeroFlag    RdWidthNum   RdLenNum      ErrorChar    
-		1	IncrPrintChar               RdWidthNum   RdLenNum      ErrorChar
-		2	IncrPrintChar               RdWidthNum   RdLenNum      ErrorChar  
+		\0	FinishPrintf	Error0														HandleNullByte
+		%	BRFSpecifier    TPSpecifier                                             	HandlePercent
+		+   IncrPrintChar   PlusFlag    ErrorChar                                   	HandlePlus
+		-	IncrPrintChar   DashFlag    ErrorChar                                   	HandleDash
+space ' '	IncrPrintChar   SpaceFlag   ErrorChar                                   	HandleSpace
+		#	IncrPrintChar   PoundFlag   ErrorChar                                   	HandlePound
+		*	IncrPrintChar               WidthArg     ErrorChar                      	HandleStar
+		l   IncrPrintChar                            SetLength     ErrorChar        	HandleLH
+		h   IncrPrintChar                            SetLength     ErrorChar        	HandleLH
+		0	IncrPrintChar   ZeroFlag    RdWidthNum   RdLenNum      ErrorChar        	HandleZero
+		1	IncrPrintChar               RdWidthNum   RdLenNum      ErrorChar        	HandleDigit 
+		2	IncrPrintChar               RdWidthNum   RdLenNum      ErrorChar    
 		3	IncrPrintChar               RdWidthNum   RdLenNum      ErrorChar
 		4	IncrPrintChar               RdWidthNum   RdLenNum      ErrorChar
 		5	IncrPrintChar               RdWidthNum   RdLenNum      ErrorChar
 		6	IncrPrintChar               RdWidthNum   RdLenNum      ErrorChar
 		7	IncrPrintChar               RdWidthNum   RdLenNum      ErrorChar
 		8	IncrPrintChar               RdWidthNum   RdLenNum      ErrorChar
-		9	IncrPrintChar               RdWidthNum   RdLenNum      ErrorChar
-		c   IncrPrintChar                                          HandleCharSpec
-		d   IncrPrintChar                                          HandleSignedDecimalSpec
-		i   IncrPrintChar                                          HandleSignedDecimalSpec
-		n   IncrPrintChar                                          HandleNSpec
-		o   IncrPrintChar                                          HandleOctalSpec
-		p   IncrPrintChar                                          HandlePointerSpec
-		s   IncrPrintChar                                          HandleStringSpec
-		u   IncrPrintChar                                          HandleUnsignedDecimalSpec
-		x   IncrPrintChar                                          HandleHexSpec
-		X   IncrPrintChar                                          HandleHexCapsSpec
+		9	IncrPrintChar               RdWidthNum   RdLenNum      ErrorChar        	HandleDigit
+		c   IncrPrintChar                                          CharSpecifier 
+		d   IncrPrintChar                                          SignedDecimalSpecifier
+		i   IncrPrintChar                                          SignedDecimalSpecifier
+		n   IncrPrintChar                                          NSpecifier
+		o   IncrPrintChar                                          OctalSpecifier
+		p   IncrPrintChar                                          PointerSpecifier
+		s   IncrPrintChar                                          StringSpecifier
+		u   IncrPrintChar                                          UnsignedDecimalSpecifier
+		x   IncrPrintChar                                          HexSpecifier
+		X   IncrPrintChar                                          HexCapsSpecifier
 	OTHER   IncrPrintChar                                          ErrorChar
 
 Abbrevs
@@ -72,6 +72,16 @@ Abbrevs
 
 
 printf_baremetal: @ r0: outputfunc, r1: formatstr, r2: argumentstr
+
+.equ BUFFERSIZE, 1024 
+	@ actual size of buffer that holds chars before they go out to outputfunc
+.equ MAXNUMBYTESIZE, BUFFERSIZE
+	@ maximum number of bytes a number (in memory) can have and still be print-formatted by
+	@ our printf (given in the "lengthspec" field of the format specifier)
+.equ OUTPUTSTRINGSIZE, 4*MAXNUMBYTESIZE @ big enough to hold ceil(MAXNUMBERSIZE*8/3) octal digits
+	@ this buffer holds the formatted print number's ascii codes before it is printed
+
+push { r0-r12, lr } @ we keep track of sp. lr is pc. original lr is not available, clobbered during branch and link.
 	
 	mov regvar_i, 0 @ index for reading the format string
 	mov regvar_j, 0 @ index for reading the argument string
@@ -79,8 +89,8 @@ printf_baremetal: @ r0: outputfunc, r1: formatstr, r2: argumentstr
 	mov regvar_buffercount, 0 @ zero characters in the print buffer so far
 
 ReadFormatString:
-ldrb regvar_char, [regvar_formatstr, regvar_i] @ char = formatstr[i]
-tbb [regvar_asciitable, regvar_char] @ branch by ascii character to the right handlers
+	ldrb regvar_char, [regvar_formatstr, regvar_i] @ char = formatstr[i]
+	tbb [regvar_asciitable, regvar_char] @ branch by ascii character to the right handlers
 
 	tbb [pc, regvar_state] @ (\0)
 	HandleNullByte:
@@ -132,11 +142,75 @@ tbb [regvar_asciitable, regvar_char] @ branch by ascii character to the right ha
 
 
 
+pop { r0-r12, pc }
 
 
+
+
+
+
+@ !! Error Messages !!
 
 	PrematurelyFinishedFormatStringMsg:
 		.asciz "Error: format string terminated in the middle of a format specifier\n"
+	.align
+	LengthModifierTooLongMsg: 
+		.asciz "Length modifier can be no longer than 1024 bytes\n"
+	.align
+	IllegalFormatSpecifierMsg: 
+		.asciz "Error: invalid format specifier\n"
+	.align
+	UselessInfoWithPercentSpecifierMsg: 
+		.asciz "Error: format string ended in the middle of a format specifier\n"
+	.align
+	FlagsNotInUseWithSpecCandSMsg:
+		.asciz "Error: the '+', ' ', '0', '#' flags not in use with c and s specifiers\n"
+	.align
+	InvalidLengthModifierMsg: 
+		.asciz "Error: invalid length modifier in format string"
+	.align
+	InvalidLengthModifierWithStringandCharMsg:
+		.asciz "Error: length modifiers are not used with char and string specifiers\n"
+	.align
+	FlagAlreadySetMsg: 
+		.asciz "Error: repeated flags in format specifier\n"
+	.align
+	InvalidModifiersWithSpecifierNMsg: 
+		.asciz "Error: format specifier n doesn't take any additional parameters\n"
+	.align
+	PlusAndSpaceFlagsBothSetMsg: 
+		.asciz "Error: Plus and Space flags both set\n"
+	.align
+	
+	SyntaxErrorInArgumentStringMsg: 
+		.asciz "Error: syntax error in argument string\n"
+	.align
+	MissingArgumentsMsg: 
+		.asciz "Error: missing necessary arguments in the argument string\n"
+	.align
+	MisplacedRightBracketMsg: 
+		.asciz "Error: misplaced right bracket in the argument string\n"
+	.align
+	MisplacedPlusSignMsg: 
+		.asciz "Error: misplaced plus sign in the argument string\n"
+	.align
+	HandleOtherCharacterMsg: 
+		.asciz "Error: stray character in argument string\n" @ typical assembler (crap compiler) error
+	.align
+	LinkRegisterInvalidMsg: 
+		.asciz "Error: Link Register is inaccessible to printf, clobbered by branch and link\n"
+	.align
+	InvalidRegisterMsg: 
+		.asciz "Error:Invalid Register in the argument string\n"
+	.align
+	MisplacedLeftBracketMsg: 
+		.asciz "Error: misplaced left bracket in the argument string\n"
+	.align
+	MisplacedSignMsg: 
+		.asciz "Error: misplaced sign in the argument string\n"
+	.align
+	MissingClosingBracketMsg: 
+		.asciz "Error: missing closing bracket in argument string\n"
 	.align
 
 
@@ -193,7 +267,7 @@ Abbrevs
 
 
 	PrematurelyFinishedArgumentStringMsg:
-		.asciz "Error: format string terminated in the middle of a format specifier\n"
+		.asciz "Error: argument string terminated in the middle of a format specifier\n"
 	.align
 
 

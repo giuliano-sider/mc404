@@ -35,7 +35,7 @@ InputError:
 ModeStr: .asciz "r"
 ExitUserPromptLoop:
 	ldr r0, =GoodbyeMsg
-	bl printf
+	bl puts
 pop { pc }
 
 FormatStringTest: 
@@ -783,28 +783,32 @@ LengthModifierTooLong:
 LengthModifierTooLongMsg: .asciz "Length modifier can be no longer than 1024 bytes\n"
 
 IllegalFormatSpecifierMsg: 
-		.asciz "Error: invalid format specifier\n"
-	.align
+	.asciz "Error: invalid format specifier\n"
+.align
 UselessInfoWithPercentSpecifierMsg: 
-		.asciz "Error: format string ended in the middle of a format specifier\n"
-	.align
+	.asciz "Error: format string ended in the middle of a format specifier\n"
+.align
 FormatStringPrematurelyEndedMsg: 
-		.asciz "Error: format string ended in the middle of a format specifier\n"
-	.align
+	.asciz "Error: format string ended in the middle of a format specifier\n"
+.align
 FlagsNotInUseWithSpecCandSMsg:
-		.asciz "Error: the '+', ' ', '0', '#' flags not in use with c and s specifiers\n"
-	.align
-InvalidLengthModifierMsg: .asciz "Error: invalid length modifier in format string"
+	.asciz "Error: the '+', ' ', '0', '#' flags not in use with c and s specifiers\n"
+.align
+InvalidLengthModifierMsg: 
+	.asciz "Error: invalid length modifier in format string"
 .align
 InvalidLengthModifierWithStringandCharMsg:
-		.asciz "Error: length modifiers are not used with char and string specifiers\n"
-	.align
-FlagAlreadySetMsg: .asciz "Error: repeated flags in format specifier\n"
-	.align
+	.asciz "Error: length modifiers are not used with char and string specifiers\n"
+.align
+FlagAlreadySetMsg: 
+	.asciz "Error: repeated flags in format specifier\n"
+.align
 InvalidModifiersWithSpecifierNMsg: 
 	.asciz "Error: format specifier n doesn't take any additional parameters\n"
-	.align
-PlusAndSpaceFlagsBothSetMsg: .asciz "Error: Plus and Space flags both set\n"
+.align
+PlusAndSpaceFlagsBothSetMsg: 
+	.asciz "Error: Plus and Space flags both set\n"
+.align
 
 ObtainValueFromNextArg: @ r0 -> lengthspec bytes (size of number, if argument is meant to be a number)
 @ note: we used a different 'state machine' for reading argument string

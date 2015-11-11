@@ -9,7 +9,7 @@ int main() {
 	int merda = 0xc3; // 0b11000011;
 	int mijo = 20;
 
-	printf ( "%0#8x\n", printf );
+	printf ( "%0# -10x\n", printf );
 	
 
 
