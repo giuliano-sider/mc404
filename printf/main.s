@@ -24,7 +24,7 @@ const := [0x|0]<digits>
 
 
 
-.include macros.s 
+.include "macros.s" 
 
 
 
@@ -69,14 +69,13 @@ ExitUserPromptLoop:
 
 WelcomeMsg: .asciz "Welcome to the printf bare metal test module. The world's finest bare metal ARM assembly printf. ^D to quit\n"
 UserPromptMsg: .asciz "USAGE: <FormatString> \\n <ArgumentString> \\n \n"
-PromptString: " %1023[^\n] %1023[^\n]" @ should be enough for testing purposes
+PromptString: .asciz " %1023[^\n] %1023[^\n]" @ should be enough for testing purposes
 GoodbyeMsg: .asciz "thanks for testing out the world's finest when it comes to printfs. buhbye\n"
 
 .align
-.include printf.s 
+.include "printfcode.s" 
 
 @ int printf_baremetal( int (*outputfunc)(const char*) , const char *formatstr, const char *argstr)
 @ outputfunc used for testing is puts (wrapper not necessary in asm: no typing)
 
-
-.include data.s 
+.include "data.s" 

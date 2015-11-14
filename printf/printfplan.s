@@ -23,14 +23,12 @@ int printf_baremetal ( int (*outputfunc) (const char *) ,  const char *formatstr
 			readformatstr	readflags	readwidth    readlength    readspecifier 		TABLE_ENTRY (trampoline)
 
 		\0	FinishPrintf	Error0														HandleNullByte
-		%	BRFSpecifier    TPSpecifier                                             	HandlePercent
 space ' '	IncrPrintChar   SpaceFlag   ErrorChar                                   	HandleSpace
 		#	IncrPrintChar   PoundFlag   ErrorChar                                   	HandlePound
+		%	BRFSpecifier    TPSpecifier                                             	HandlePercent
+		*	IncrPrintChar               WidthArg     ErrorChar                      	HandleStar
 		+   IncrPrintChar   PlusFlag    ErrorChar                                   	HandlePlus
 		-	IncrPrintChar   DashFlag    ErrorChar                                   	HandleDash
-		*	IncrPrintChar               WidthArg     ErrorChar                      	HandleStar
-		l   IncrPrintChar                            SetLengthL    ErrorChar        	HandleLH
-		h   IncrPrintChar                            SetLengthH    ErrorChar        	HandleLH
 		0	IncrPrintChar   NaughtFlag  RdWidthNum   RdLenNum      ErrorChar        	HandleNaught
 		1	IncrPrintChar               RdWidthNum   RdLenNum      ErrorChar        	HandleDigit 
 		2	IncrPrintChar               RdWidthNum   RdLenNum      ErrorChar    
@@ -43,7 +41,9 @@ space ' '	IncrPrintChar   SpaceFlag   ErrorChar                                 
 		9	IncrPrintChar               RdWidthNum   RdLenNum      ErrorChar        	HandleDigit
 		c   IncrPrintChar                                          CharSpecifier 
 		d   IncrPrintChar                                          SignedDecimalSpecifier
+		h   IncrPrintChar                            SetLengthH    ErrorChar        	HandleLH
 		i   IncrPrintChar                                          SignedDecimalSpecifier
+		l   IncrPrintChar                            SetLengthL    ErrorChar        	HandleLH
 		n   IncrPrintChar                                          NSpecifier
 		o   IncrPrintChar                                          OctalSpecifier
 		p   IncrPrintChar                                          PointerSpecifier
