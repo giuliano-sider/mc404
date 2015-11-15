@@ -27,51 +27,60 @@ push { r0 }
 
 	tst \Rregvar_flags, (1<<9) @ do we print a x|X prefix?
 	itt ne @ print a x|X prefix flag is set 
-	ldrne r0, [\Rregvar_digitlookup, 16] @ last position in hex digit lookup table is x or X according to convenience
+	ldrbne r0, [\Rregvar_digitlookup, 16] @ last position in hex digit lookup table is x or X according to convenience
 	blne PrintChar
 pop { r0 }
 .endm
 
-.macro UnsignedCeil Rdest, Rsrc, imm_power @ Rdest = ceil(Rsrc/2^imm_power). Note: Rdest must be different from Rsrc
-
+/*.macro UnsignedCeil Rdest, Rsrc, imm_power @ Rdest = ceil(Rsrc/2^imm_power). Note: Rdest must be different from Rsrc
+	
 	lsr \Rdest, \Rsrc, \imm_power
 	cmp \Rsrc, \Rdest, lsl \imm_power @ zero iff the imm_power lsb's of Rsrc are naught.
 	it ne
 	addne \Rdest, 1
 	
+.endm*/
+.macro UnsignedCeil Rdest, Rsrc, imm_power @ Rdest = ceil(Rsrc/2^imm_power). Note: Rdest must be different from Rsrc
+	
+	.equ the_power_of_two, 1
+	.rept \imm_power
+		.equ the_power_of_two, 2*the_power_of_two
+	.endr
+	.equ the_power_of_two, the_power_of_two-1 @ compute (2^imm_power - 1)
+
+	add \Rdest, \Rsrc, the_power_of_two
+	lsrs \Rdest, \imm_power @ sets flags
+
 .endm
+
 
 
 LoadRegisterValue: @ Blessed be the non clobberers, for theirs is the kingdom of silicon
 @ in : r0 -> number of register whose value must be loaded.
 @ out: r0- > loads the contents of user's register.
-
+push { r1, lr }
 	cmp r0, 16
-	bhs /*LRV*/InvalidRegisterSpecified @ register must be in the range 0-15
-	cmp r0, 13 @ user's sp is sp + obtainvalue_stackframesize + printf_varstackframesize
-	beq StackPointerToBeFetched
+	itt hs
+	addhs sp, 8 @ unwind this function's stack (assembly => not a healthy way to program)
+	bhs InvalidRegisterSpecified @ register must be in the range 0-15
 	cmp r0, 14
-	beq /*LRV*/TriedToUseLinkRegister @ user's link register inaccessible
-	ite gt @ if reg is pc, adjust it so we use the right offset to access it
-	movgt r0, (/*LRV_stackframesize*/ + obtainvalue_stackframesize + printf_varstackframesize + 13)
-		@ lr (user's pc) is at an offset of 13 (highest address of user registers saved by printf)
-	addle r0, r0, (LRV_stackframesize + obtainvalue_stackframesize + printf_varstackframesize) 
-		@ correct offset (in words) to the desired register
-	ldr r0, [sp, r0, lsl 2] @ fetch the register from where printf saved it
-mov pc, lr
-StackPointerToBeFetched:
-	add r0, sp, (obtainvalue_stackframesize + printf_varstackframesize + 14) @ 14 user registers saved
-mov pc, lr
+	itt eq
+	addeq sp, 8 @ unwind this function's stack (assembly => not a healthy way to program)
+	beq TriedToUseLinkRegister @ user's link register inaccessible
+	ldr r1, =TheUserStack
+	ldr r0, [r1, r0, lsl 2] @ fetch the register from where printf saved it in TheUserStack static struct
+pop { r1, pc }
 
-/*LRVInvalidRegisterSpecified:
-	add sp, LRV_stackframesize, lsl 2 @ unwind this function and call its ObtainValue's error dispatcher
-	bl InvalidRegisterSpecified
-LRVTriedToUseLinkRegister:
-	add sp, LRV_stackframesize, lsl 2 @ unwind this function and call its ObtainValue's error dispatcher
-	bl TriedToUseLinkRegister*/
-
-
-
+StringLength: @ string -> r0 ... r0->string, r1 -> string length.
+push { r2, lr }
+mov r1, 0 @ initial length
+DoStringLengthLoop:
+	ldrb r2, [r0, r1]
+	cbz r2, FinishedStringLength
+	add r1, 1
+	b DoStringLengthLoop
+FinishedStringLength: 
+pop { r2, pc }
 
 ParseStringAsDecimalNumber: @ no clobber
 	@ in: string -> r0, index-> r1 
@@ -168,10 +177,11 @@ ExtractDigitsFromNumber:
 	ldrb regvar_ODFN_aux, [r3, r2] @ char = lookuptable[remainder]
 	strb regvar_ODFN_aux, [regvar_outputstring, regvar_outputstringlength] @ outputstring[outputstringlength] = char 
 	add regvar_outputstringlength, 1 @ outputstring is one character bigger now
-	b ExtractedAllTheDigits
+	b ExtractDigitsFromNumber
 ExtractedAllTheDigits:
 	strb r2, [regvar_outputstring, regvar_outputstringlength] @ end string with null byte. see above: r2 leaves loop with zero.
 @ note that the number zero leads to an empty string.
+	mov r2, regvar_ODFN_radix @ since when is assembly language programming a good idea
 	mov r1, regvar_outputstringlength @ we return the length of the string in r1,
 	mov r0, regvar_outputstring @ and the string itself in r0.
 pop { r4-r7 , pc }
@@ -199,7 +209,7 @@ DoTheDivision:
 		add regvar_dividend, regvar_dividend, regvar_remainder, lsl 16 @ dividend = dividend + remainder * 2^16
 		udiv regvar_quotient, regvar_dividend, r2 @ r2 is the divisor (our radix)
 		mls regvar_remainder, regvar_quotient, r2, regvar_dividend @ remainder = dividend - quotient*divisor
-		strh regvar_quotient, [regvar_hwaddr] @ number[hwindex] = quotient[hwindex] 
+		strh regvar_quotient, [regvar_hwaddr] @ *hwaddr = quotient 
 			@ we clobber the number with the quotient of the division for our convenience
 		teq regvar_isitleadingzero, regvar_quotient @ if both are zero, decrease halfword size of number
 		ite eq @ if we have another (new) leading zero, decrement the num of halfwords of this number
@@ -207,9 +217,9 @@ DoTheDivision:
 		movne regvar_isitleadingzero, -1 @ else set the isitleadingzero flag to false (we detected a non zero)
 		b DoTheDivision
 DivisionIsDone:
-	lsrs regvar_hwindex, 1
-	adcs r1, regvar_hwindex, 0 @ a way of doing ceil(hwindex/2), the new size of number in words
-	it eq @ if num size is zero, we actually want number to be 1 word long
+	UnsignedCeil r1, regvar_hwindex, 1 @ ceil(hwindex/2^1), the new size of number in words
+	cmp r1, 0
+	it eq @ if num size is zero (number itself is zero), we actually want number to be 1 word long
 	moveq r1, 1
 	mov r2, regvar_remainder
 pop { r3-r8 , pc }
@@ -221,10 +231,10 @@ IsNumberZero: @ number -> r0, number word size -> r1 ...
 	cmp r1, 1 @ if numsize!=1, then number is not zero
 	bne ReturnNonZero
 	ldr r2, [r0] @ load the first (and only) word of the number 
-	mov pc, lr @ returns zero in r2 iff number is zero @ cbnz r2, ReturnNonZero @ it's not zero 
+mov pc, lr @ returns zero in r2 iff number is zero @ cbnz r2, ReturnNonZero @ it's not zero 
 ReturnNonZero:
 	mov r2, 1 @ non zero value since the number is not zero
-	mov pc, lr
+mov pc, lr
 
 
 CopyNumberToBuffer: @ (user provided/ObtainValueFromNextArg provided) pointer to number -> r0, number byte length -> r1 ... 
@@ -234,15 +244,16 @@ push {  r2-r4 , lr } @ strict no clobber policy within printf.
 	ldr r4, =Number @ this is our internal buffer where we copy to.
 	lsr r3, r1, 2 @ floor(numbytes/4)
 	mov r2, 0
-	str r2, [r4, r3] @ make sure there is a zero at the end of the number in case it is not word aligned and there are extra bytes at the end.
+	str r2, [r4, r3, lsl 2] @ make sure there is a zero at
+		@ (possibly one past) the end of the number in case it is not word aligned and there are extra bytes at the end.
 	UnsignedCeil r3, r1, 2 @ r3 = Ceil(r1/2^2) number of words our number will have in the internal (private) buffer 
 	//mov r2, r1 @ numsize bytes will be copied
-CopyThoseWordsIntoNumber:
+CopyThoseBytesIntoNumber:
 	cbz r1, CopiedToBuffer @ while there are bytes left to copy.
 		sub r1, 1
 		ldrb r2, [r0, r1] @ temp = number[--index]
-		strb r2, [r4, r2] @ number[index] = temp
-		b CopyThoseWordsIntoNumber
+		strb r2, [r4, r1] @ number[index] = temp
+		b CopyThoseBytesIntoNumber
 CopiedToBuffer:
 	mov r0, r4 @ return pointer to number in internal buffer
 	mov r1, r3 @ return size of number in words ( ceil(numbytes/4) )
@@ -257,15 +268,16 @@ push {  r2-r4 , lr } @ strict no clobber policy within printf.
 	ldr r4, =Number @ this is our internal buffer where we copy to.
 	lsr r3, r1, 2 @ floor(numbytes/4)
 	mov r2, 0
-	str r2, [r4, r3] @ make sure there is a zero at the end of the number in case it is not word aligned and there are extra bytes at the end.
+	str r2, [r4, r3, lsl 2] @ make sure there is a zero at the
+		@ (possibly one past the) end of the number in case it is not word aligned and there are extra bytes at the end.
 	UnsignedCeil r3, r1, 2 @ r3 = Ceil(r1/2^2) number of words our number will have in the internal (private) buffer 
 	//mov r2, r1 @ numsize bytes will be copied
 CopyComplThoseWordsIntoNumber:
-	cbz r1, CopyComplToBuffer @ while there are bytes left to copy.
+	cbz r1, CopiedComplToBuffer @ while there are bytes left to copy.
 		sub r1, 1
 		ldrb r2, [r0, r1] @ temp = number[--index]
 		mvn r2, r2 @ complement the bits
-		strb r2, [r4, r2] @ number[index] = temp
+		strb r2, [r4, r1] @ number[index] = temp
 		b CopyComplThoseWordsIntoNumber
 CopiedComplToBuffer:
 	mov r0, r4 @ return pointer to number in internal buffer
@@ -281,7 +293,7 @@ pop { r2-r4 , pc }
 
 
 PrintStringInReverse: @ string -> r0, length -> r1 ... echoes r0, r1
-push { r2 , lr }
+push { r0-r2 , lr }
 	mov r2, r0 @ string kept here
 PrintStringInReverseLoop:
 	cbz r1, FinishedPrintStringInReverse @ while index > 0 
@@ -289,11 +301,12 @@ PrintStringInReverseLoop:
 		ldrb r0, [r2, r1] @ print string[--index]
 		bl PrintChar @ clobber protection provided
 		b PrintStringInReverseLoop
-pop { r2, pc }
+FinishedPrintStringInReverse:
+pop { r0-r2, pc }
 
 
 PrintString: @ string -> r0 ... r0-> string (echo)
-push { r1, lr }
+push { r0-r1, lr }
 	mov r1, r0 @ keep the string here 
 PrintStringLoop:
 	ldrb r0, [r1]
@@ -301,7 +314,7 @@ PrintStringLoop:
 		bl PrintChar @ provides clobber protection
 	b PrintStringLoop
 FinishedPrintString:
-pop { r1, pc }
+pop { r0-r1, pc }
 
 
 ObtainValueFromNextArg: 
@@ -331,9 +344,10 @@ regvar_argscratch1 .req r3 @ used at the end only
 regvar_argscratch2 .req r4
 regvar_argscratch3 .req r5
 
-.equ obtainvalue_stackframesize, 7 @ 7 words (registers) have been saved
+//.equ obtainvalue_stackframesize, 8
+
 @ argflags: bit 0 (+ -), bit 1 (no [, [), bit 2 (no ], ]), 
-	mov regvar_argstate, readleftbracket @ initial state for reading the argument string.
+	mov regvar_argstate, matchleftbracket @ initial state for reading the argument string.
 	mov regvar_argflags, 0 @ no square brackets, default offset is positive
 	mov regvar_arg, 0 @ read first argument 
 	ldr regvar_args, =ArgValue @ store arguments here for subsequent calculation
@@ -345,7 +359,7 @@ regvar_argscratch3 .req r5
 ReadArgumentString:
 
 ldrb regvar_argchar, [regvar_argstr, regvar_argj] @ char = argumentstr[j]
-tbb [regvar_arg_asciitable, regvar_argchar] @ branch by ascii character to the right handlers
+tbh [regvar_arg_asciitable, regvar_argchar, lsl 1] @ branch by ascii character to the right handlers
 OBFNABranchOnCharacter:
 	
 	ArgHandleLeftBracket: @ handle '[': if matchleftbracket, ok. otherwise error.
@@ -388,14 +402,14 @@ OBFNABranchOnCharacter:
 
 	ArgHandleL: @ handle 'l'. could be 'lsl' or 'lr'
 @ note the name decoration. separate assembly would solve this problem? are names internal to a module by default ("static") ? .global directive
-		tbb [pc, regvar_argstate] @ (l) table branch cuts us some slack here
+		tbh [pc, regvar_argstate, lsl 1] @ (l) table branch cuts us some slack here
 	ArgBranchOnStateForL:
-		.byte (TriedToUseLinkRegister-ArgBranchOnStateForL)/2
-		.byte (TriedToUseLinkRegister-ArgBranchOnStateForL)/2
-		.byte (ErrorCharArg-ArgBranchOnStateForL)/2
-		.byte (SetLeftShift-ArgBranchOnStateForL)/2
-		.byte (ErrorCharArg-BranchOnStateForL)/2
-		.byte (ErrorCharArg-ArgBranchOnStateForL)/2
+		.hword (TriedToUseLinkRegister-ArgBranchOnStateForL)/2
+		.hword (TriedToUseLinkRegister-ArgBranchOnStateForL)/2
+		.hword (ErrorCharArg-ArgBranchOnStateForL)/2
+		.hword (SetLeftShift-ArgBranchOnStateForL)/2
+		.hword (ErrorCharArg-ArgBranchOnStateForL)/2
+		.hword (ErrorCharArg-ArgBranchOnStateForL)/2
 
 	SetLeftShift: @ must match 'lsl'
 		add regvar_argj, 1 @ matched the 'l'
@@ -424,7 +438,7 @@ OBFNABranchOnCharacter:
 		str r0, [regvar_args, regvar_arg] @ store register in its place in the argument vector
 		pop { r0 }
 		add regvar_arg, 1 @ read next argument
-		add regvar_argstate, regvar_argstate, regvar_arg @ current state is matcharg. 
+		add regvar_argstate, regvar_arg, matcharg @ current state is matcharg. 
 			@ if arg==1, goes to matchsign. else if arg==2, goes to matchshift. else if arg==3, goes to matchrightbracket.
 		b ReadArgumentString @ do loop
 
@@ -442,7 +456,7 @@ OBFNABranchOnCharacter:
 		str r0, [regvar_args, regvar_arg] @ store register in its place in the argument vector
 		pop { r0 }
 		add regvar_arg, 1 @ read next argument
-		add regvar_argstate, regvar_argstate, regvar_arg @ current state is matcharg. 
+		add regvar_argstate, regvar_arg, matcharg @ current state is matcharg. 
 			@ if arg==1, goes to matchsign. else if arg==2, goes to matchshift. else if arg==3, goes to matchrightbracket.
 		b ReadArgumentString @ do loop
 
@@ -457,7 +471,7 @@ OBFNABranchOnCharacter:
 		str r0, [regvar_args, regvar_arg] @ store register in its place in the argument vector
 		pop { r0 }
 		add regvar_arg, 1 @ read next argument
-		add regvar_argstate, regvar_argstate, regvar_arg @ current state is matcharg. 
+		add regvar_argstate, regvar_arg, matcharg @ current state is matcharg. 
 			@ if arg==1, goes to matchsign. else if arg==2, goes to matchshift. else if arg==3, goes to matchrightbracket.
 		b ReadArgumentString @ do loop
 
@@ -478,7 +492,7 @@ OBFNABranchOnCharacter:
 		str r0, [regvar_args, regvar_arg] @ store hex/octal constant in its place in the argument vector
 		pop { r0 }
 		add regvar_arg, 1 @ read next argument
-		add regvar_argstate, regvar_argstate, regvar_arg @ current state is matcharg. 
+		add regvar_argstate, regvar_arg, matcharg @ current state is matcharg. 
 			@ if arg==1, goes to matchsign. else if arg==2, goes to matchshift. else if arg==3, goes to matchrightbracket.
 		b ReadArgumentString @ do loop
 
@@ -490,7 +504,7 @@ OBFNABranchOnCharacter:
 		str r0, [regvar_args, regvar_arg] @ store decimal constant in its place in the argument vector
 		pop { r0 }
 		add regvar_arg, 1 @ read next argument
-		add regvar_argstate, regvar_argstate, regvar_arg @ current state is matcharg. 
+		add regvar_argstate, regvar_arg, matcharg @ current state is matcharg. 
 			@ if arg==1, goes to matchsign. else if arg==2, goes to matchshift. else if arg==3, goes to matchrightbracket.
 		add regvar_argj, 1
 		b ReadArgumentString @ do loop
@@ -519,8 +533,8 @@ OBFNABranchOnCharacter:
 		addeq regvar_argscratch1, regvar_argscratch1, regvar_argscratch2
 		subne regvar_argscratch1, regvar_argscratch1, regvar_argscratch2
 		tst regvar_argflags, (1<<1) @ test '[' flag
-		ite eq
-		moveq r0, regvar_argscratch1 @ return pointer to argument
+		itt ne
+		movne r0, regvar_argscratch1 @ return pointer to argument
 		bne ReturnFromObtainValueFromNextArg @ if '[' is set, we are returning an address anyway, so we are done 
 	@ otherwise, it's an actual register value and not a pointer. we will store it (length bytes, 1-4) in our special buffer
 		cmp regvar_arglength, 1 @ one byte register value copied to the internal buffer
@@ -545,47 +559,41 @@ ErrorCharArg: @ invalid character during argument specifier read
 	ldr r0, =OffendingChar
 	strb regvar_argchar, [r0] @ this character will be inserted in a sui generis error message
 	ldr r0, =ErrorCharMsg
-	bl UnwindObtainValueOnError @@@@ unwind ObtainValue's stack, load error message at sp, return 0 (error)
+	bl UnwindObtainValueOnError @@@@ unwind ObtainValue's stack, load error message at r1, return 0 (error)
 
-UnwindObtainValueOnError: @ ObtainValueFromNextArg must leave an error message (passed in at r0) at sp
-	pop { r3-r8, lr }
-	str r0, [sp]
+UnwindObtainValueOnError: @ ObtainValueFromNextArg must leave an error message (passed in at r0) at r1
+	pop { r2-r8, lr }
+	mov r1, r0 @ error message here
 	mov r0, 0 @ returns null pointer on failure
 mov pc, lr
 
 @ !! error messages !!
 
-ErrorCharArgMsg:
-	.ascii "Error: detected an invalid "
-ArgStrOffendingChar: @ place here the offending spurious character to be reported in an error message
-	.byte 0
-	.asciz " character at position in an argument specifier in the argument string\n"
-.align
 
 TriedToUseLinkRegister: @ we warn the user that the user's link register is no accessible from printf.
 	ldr r0, =TriedToUseLinkRegisterMsg
-	bl UnwindObtainValueOnError @@@@ unwind ObtainValue's stack, load error message at sp, return 0 (error)
+	bl UnwindObtainValueOnError @@@@ unwind ObtainValue's stack, load error message at r1 return 0 (error)
 TriedToUseLinkRegisterMsg:
 	.asciz "Error: the link register is not accessible from printf (clobbered during branch and link)\n"
 .align
 
 PrematurelyFinishedArgumentString: @ (\0 or ",", haven't matched any arguments yet)
 	ldr r0, =PrematurelyFinishedArgumentStringMsg
-	bl UnwindObtainValueOnError @@@@ unwind ObtainValue's stack, load error message at sp, return 0 (error)
+	bl UnwindObtainValueOnError @@@@ unwind ObtainValue's stack, load error message at r1 return 0 (error)
 PrematurelyFinishedArgumentStringMsg:
 	.asciz "Error: argument string terminated in the middle of an argument specifier\n"
 .align
 
 DidNotCloseSquareBrackets: @ (\0 or ",", haven't matched any arguments yet)
 	ldr r0, =DidNotCloseSquareBracketsMsg
-	bl UnwindObtainValueOnError @@@@ unwind ObtainValue's stack, load error message at sp, return 0 (error)
+	bl UnwindObtainValueOnError @@@@ unwind ObtainValue's stack, load error message at r1 return 0 (error)
 DidNotCloseSquareBracketsMsg:
 	.asciz "Error: unmatched square brackets in the argument string\n"
 .align
 
 InvalidRegisterSpecified: @ register must be in the range 0-15
 	ldr r0, =InvalidRegisterSpecifiedMsg
-	bl UnwindObtainValueOnError @@@@ unwind ObtainValue's stack, load error message at sp, return 0 (error)
+	bl UnwindObtainValueOnError @@@@ unwind ObtainValue's stack, load error message at r1 return 0 (error)
 InvalidRegisterSpecifiedMsg:
 	.asciz "Error: register specified as argument must be in the range 0-15\n"
 .align
@@ -652,3 +660,5 @@ FinishedPrintChar:
 stmia regvar_staticvars, { regvar_buffer, regvar_buffercount, regvar_printedchars, regvar_outputfunc }
 pop { r1-r8, r12, pc }
 	
+
+

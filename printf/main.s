@@ -23,37 +23,33 @@ const := [0x|0]<digits>
 .text
 
 
-
 .include "macros.s" 
-
-
-
-
 
 
 .global main
 main:
-	push { lr }
+push { lr }
 	ldr r0, =WelcomeMsg
 	bl printf
 UserPromptLoop:
 	ldr r0, =UserPromptMsg
 	bl printf
-	ldr r0, =PromptString
-	ldr r1, =FormatString
-	ldr r2, =ArgumentString @ read 2 strings from the user
-	bl scanf
-	cmp r0, 2 @ check if input was read (both format specifiers having been filled)
-	bne InputError
+	@ldr r0, =PromptString
+	@ldr r1, =FormatString
+	@ldr r2, =ArgumentString @ read 2 strings from the user
+	@bl scanf
+	@cmp r0, 2 @ check if input was read (both format specifiers having been filled)
+	@bne InputError
 	ldr r0, =puts @ glibc function used for writing string to stdout 
-	ldr r1, =FormatString
-	ldr r2, =ArgumentString
+	ldr r1, =FormatStringTest @ testing
+	ldr r2, =ArgumentStringTest @ testing
 	bl printf_baremetal
 	cmp r0, -1
 	itt eq
-	ldreq r0, [sp] @ load error message
+	moveq r0, r1 @ load error message
 	bleq puts
-	b UserPromptLoop
+	b ExitUserPromptLoop
+	@b UserPromptLoop
 InputError:
 	mov r0, 0
 	ldr r1, =ModeStr
@@ -65,11 +61,16 @@ ModeStr: .asciz "r"
 ExitUserPromptLoop:
 	ldr r0, =GoodbyeMsg
 	bl printf
-	pop { pc }
+pop { pc }
+
+FormatStringTest: 
+	.asciz "%d %i %i %i %i %i %i %i %i %i %i %i %i %i %i"
+ArgumentStringTest: 
+	.asciz "r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, sp, pc"
 
 WelcomeMsg: .asciz "Welcome to the printf bare metal test module. The world's finest bare metal ARM assembly printf. ^D to quit\n"
 UserPromptMsg: .asciz "USAGE: <FormatString> \\n <ArgumentString> \\n \n"
-PromptString: .asciz " %1023[^\n] %1023[^\n]" @ should be enough for testing purposes
+PromptString: .asciz " %255[^\n] %255[^\n]" @ should be enough for testing purposes
 GoodbyeMsg: .asciz "thanks for testing out the world's finest when it comes to printfs. buhbye\n"
 
 .align

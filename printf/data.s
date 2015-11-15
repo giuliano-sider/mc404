@@ -6,88 +6,169 @@
 .macro FillSpaceBetweenChars charfrom, charto, value @ 2 chars, charto>charfrom, 1 number
 @ used for filling out spaces between notable characters in an ascii indexed branch table
 	.rept (\charto - \charfrom) - 1
-		.byte \value
+		.hword \value
 	.endr
 .endm
 
 
 FormatStrAsciiTable:  @ branch table used to branch inside printf 
 @ (based on ascii character read from the format string)
-.byte 0 @ the routine for handling \0 is right after the table branch: no offset
-FillSpaceBetweenChars '\0', ' ', (HandleOther-PrintfBranchOnAsciiCharacter)/2
-.byte (BranchToHandleSpace-PrintfBranchOnAsciiCharacter)/2 @ ' '
-FillSpaceBetweenChars ' ', '#', (HandleOther-PrintfBranchOnAsciiCharacter)/2
-.byte (BranchToHandlePound-PrintfBranchOnAsciiCharacter)/2 @ '#'
-FillSpaceBetweenChars '#', '%', (HandleOther-PrintfBranchOnAsciiCharacter)/2
-.byte (BranchToHandlePercent-PrintfBranchOnAsciiCharacter)/2 @ '%'
-FillSpaceBetweenChars '%', '*', (HandleOther-PrintfBranchOnAsciiCharacter)/2
-.byte (BranchToHandleStar-PrintfBranchOnAsciiCharacter)/2 @ '*'
-.byte (BranchToHandlePlus-PrintfBranchOnAsciiCharacter)/2 @ '+'
-.byte (BranchToHandleDash-PrintfBranchOnAsciiCharacter)/2 @ '-'
-FillSpaceBetweenChars '-', '0', (HandleOther-PrintfBranchOnAsciiCharacter)/2
-.byte (BranchToHandleZero-PrintfBranchOnAsciiCharacter)/2 @ '0'
-.rept 9 @ handle the digits [1-9]
-	.byte (BranchToHandleDigits-PrintfBranchOnAsciiCharacter)/2 @ '[1-9]'
+.hword (BranchToHandleNullByte-PrintfBranchOnAsciiCharacter)/2 @ '\0'
+.rept ' ' - 1
+	.hword (HandleOther-PrintfBranchOnAsciiCharacter)/2
 .endr
-FillSpaceBetweenChars '9', 'X', (HandleOther-PrintfBranchOnAsciiCharacter)/2
-.byte (HandleBigX-PrintfBranchOnAsciiCharacter)/2 @ 'X' (in caps)
-FillSpaceBetweenChars 'X', 'c', (HandleOther-PrintfBranchOnAsciiCharacter)/2
-.byte (HandleC-PrintfBranchOnAsciiCharacter)/2 @ 'c'
-.byte (HandleD-PrintfBranchOnAsciiCharacter)/2 @ 'd'
-FillSpaceBetweenChars 'd', 'h', (HandleOther-PrintfBranchOnAsciiCharacter)/2
-.byte (BranchToHandleH-PrintfBranchOnAsciiCharacter)/2 @ 'h'
-.byte (HandleD-PrintfBranchOnAsciiCharacter)/2 @ 'i' @ same as 'd'
-FillSpaceBetweenChars 'i', 'l', (HandleOther-PrintfBranchOnAsciiCharacter)/2
-.byte (BranchToHandleL-PrintfBranchOnAsciiCharacter)/2 @ 'l'
-FillSpaceBetweenChars 'l', 'n', (HandleOther-PrintfBranchOnAsciiCharacter)/2
-.byte (HandleN-PrintfBranchOnAsciiCharacter)/2 @ 'n'
-FillSpaceBetweenChars 'n', 'o', (HandleOther-PrintfBranchOnAsciiCharacter)/2
-.byte (HandleO-PrintfBranchOnAsciiCharacter)/2 @ 'o'
-.byte (HandleP-PrintfBranchOnAsciiCharacter)/2 @ 'p'
-FillSpaceBetweenChars 'p', 's', (HandleOther-PrintfBranchOnAsciiCharacter)/2
-.byte (HandleS-PrintfBranchOnAsciiCharacter)/2 @ 's'
-FillSpaceBetweenChars 's', 'u', (HandleOther-PrintfBranchOnAsciiCharacter)/2
-.byte (HandleX-PrintfBranchOnAsciiCharacter)/2 @ 'x'
-FillSpaceBetweenChars 'x', 256, (HandleOther-PrintfBranchOnAsciiCharacter)/2
+@FillSpaceBetweenChars '\0', ' ', (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.hword (BranchToHandleSpace-PrintfBranchOnAsciiCharacter)/2 @ ' '
+@FillSpaceBetweenChars ' ', '#', (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.rept '#' - ' ' - 1
+	.hword (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.endr
+.hword (BranchToHandlePound-PrintfBranchOnAsciiCharacter)/2 @ '#'
+@FillSpaceBetweenChars '#', '%', (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.rept '%' - '#' - 1
+	.hword (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.endr
+.hword (BranchToHandlePercent-PrintfBranchOnAsciiCharacter)/2 @ '%'
+@FillSpaceBetweenChars '*', '%', (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.rept '*' - '%' - 1
+	.hword (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.endr
+.hword (BranchToHandleStar-PrintfBranchOnAsciiCharacter)/2 @ '*'
+.hword (BranchToHandlePlus-PrintfBranchOnAsciiCharacter)/2 @ '+'
+.hword (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.hword (BranchToHandleDash-PrintfBranchOnAsciiCharacter)/2 @ '-'
+@FillSpaceBetweenChars '-', '0', (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.rept '0' - '-' - 1
+	.hword (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.endr
+.hword (BranchToHandleZero-PrintfBranchOnAsciiCharacter)/2 @ '0'
+.rept 9 @ handle the digits [1-9]
+	.hword (BranchToHandleDigits-PrintfBranchOnAsciiCharacter)/2 @ '[1-9]'
+.endr
+@FillSpaceBetweenChars '9', 'X', (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.rept 'X' - '9' - 1
+	.hword (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.endr
+.hword (HandleBigX-PrintfBranchOnAsciiCharacter)/2 @ 'X' (in caps)
+@FillSpaceBetweenChars 'X', 'c', (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.rept 'c' - 'X' - 1
+	.hword (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.endr
+.hword (HandleC-PrintfBranchOnAsciiCharacter)/2 @ 'c'
+.hword (HandleD-PrintfBranchOnAsciiCharacter)/2 @ 'd'
+@FillSpaceBetweenChars 'd', 'h', (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.rept 'h' - 'd' - 1 
+	.hword (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.endr
+.hword (BranchToHandleH-PrintfBranchOnAsciiCharacter)/2 @ 'h'
+.hword (HandleD-PrintfBranchOnAsciiCharacter)/2 @ 'i' @ same as 'd'
+@FillSpaceBetweenChars 'i', 'l', (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.rept 'l' - 'i' -1
+	.hword (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.endr
+.hword (BranchToHandleL-PrintfBranchOnAsciiCharacter)/2 @ 'l'
+@FillSpaceBetweenChars 'l', 'n', (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.rept 'n'- 'l' - 1
+	.hword (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.endr
+.hword (HandleN-PrintfBranchOnAsciiCharacter)/2 @ 'n'
+@FillSpaceBetweenChars 'n', 'o', (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.rept 'o' - 'n' - 1
+	.hword (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.endr
+.hword (HandleO-PrintfBranchOnAsciiCharacter)/2 @ 'o'
+.hword (HandleP-PrintfBranchOnAsciiCharacter)/2 @ 'p'
+@FillSpaceBetweenChars 'p', 's', (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.rept 's' - 'p' - 1
+	.hword (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.endr
+.hword (HandleS-PrintfBranchOnAsciiCharacter)/2 @ 's'
+@FillSpaceBetweenChars 's', 'u', (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.rept 'u' - 's' - 1
+	.hword (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.endr
+.hword (HandleU-PrintfBranchOnAsciiCharacter)/2 @ 'u'
+.rept 'x' - 'u' - 1
+	.hword (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.endr
+.hword (HandleX-PrintfBranchOnAsciiCharacter)/2 @ 'x'
+@FillSpaceBetweenChars 'x', 256, (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.rept 256 - 'x' - 1
+	.hword (HandleOther-PrintfBranchOnAsciiCharacter)/2
+.endr
 @ 256==end of table
 
 ArgAsciiTable: @ branch table used to branch inside ObtainValueFromNextArg 
 @ (based on ascii character read from the argument string)
 
-.byte (ArgHandleNullOrComma-OBFNABranchOnCharacter)/2 @ '\0'
-FillSpaceBetweenChars '\0', '\t', (ErrorCharArg-OBFNABranchOnCharacter)/2
-.byte (HandleWSP-OBFNABranchOnCharacter)/2 @ '\t'
-@FillSpaceBetweenChars '\t', '\n', (ErrorCharArg-OBFNABranchOnCharacter)/2
-.byte (HandleWSP-OBFNABranchOnCharacter)/2 @ '\n'
-FillSpaceBetweenChars '\n', '\r', (ErrorCharArg-OBFNABranchOnCharacter)/2
-.byte (HandleWSP-OBFNABranchOnCharacter)/2 @ '\r'
-FillSpaceBetweenChars '\r', ' ', (ErrorCharArg-OBFNABranchOnCharacter)/2
-.byte (HandleWSP-OBFNABranchOnCharacter)/2 @ ' '
-FillSpaceBetweenChars ' ', '+', (ErrorCharArg-OBFNABranchOnCharacter)/2
-.byte (ArgHandlePlus-OBFNABranchOnCharacter)/2 @ '+'
-.byte (HandleNullOrComma-OBFNABranchOnCharacter)/2 @ ','
-.byte (ArgHandleMinus-OBFNABranchOnCharacter)/2 @ '-'
-FillSpaceBetweenChars '-', '0', (ErrorCharArg-OBFNABranchOnCharacter)/2
-.byte (ArgHandleNaught-OBFNABranchOnCharacter)/2 @ '0'
-.rept 9
-	.byte (ArgHandleDigits-OBFNABranchOnCharacter)/2 @ '[1-9]'
+.hword (ArgHandleNullOrComma-OBFNABranchOnCharacter)/2 @ '\0'
+@FillSpaceBetweenChars '\0', '\t', (ErrorCharArg-OBFNABranchOnCharacter)/2
+.rept 8 @ up to \t (cant rely on assemblers with crap parsers)
+	.hword (ErrorCharArg-OBFNABranchOnCharacter)/2
 .endr
-FillSpaceBetweenChars '9', '[', (ErrorCharArg-OBFNABranchOnCharacter)/2
-.byte (ArgHandleLeftBracket-OBFNABranchOnCharacter)/2 @ '['
-FillSpaceBetweenChars '[', ']', (ErrorCharArg-OBFNABranchOnCharacter)/2
-.byte (ArgHandleRightBracket-OBFNABranchOnCharacter)/2 @ ']'
-FillSpaceBetweenChars ']', 'l', (ErrorCharArg-OBFNABranchOnCharacter)/2
-.byte (ArgHandleL-OBFNABranchOnCharacter)/2 @ 'l'
-FillSpaceBetweenChars 'l', 'p', (ErrorCharArg-OBFNABranchOnCharacter)/2
-.byte (ArgHandleP-OBFNABranchOnCharacter)/2 @ 'p'
-FillSpaceBetweenChars 'p', 'r', (ErrorCharArg-OBFNABranchOnCharacter)/2
-.byte (ArgHandleR-OBFNABranchOnCharacter)/2 @ 'r'
-.byte (ArgHandleS-OBFNABranchOnCharacter)/2 @ 's'
-FillSpaceBetweenChars 's', 256, (ErrorCharArg-OBFNABranchOnCharacter)/2
+.hword (HandleWSP-OBFNABranchOnCharacter)/2 @ '\t'
+@FillSpaceBetweenChars '\t', '\n', (ErrorCharArg-OBFNABranchOnCharacter)/2
+.hword (HandleWSP-OBFNABranchOnCharacter)/2 @ '\n'
+@FillSpaceBetweenChars '\n', '\r', (ErrorCharArg-OBFNABranchOnCharacter)/2
+.rept 2 @.rept '\r' - '\n' - 1
+	.hword (ErrorCharArg-OBFNABranchOnCharacter)/2
+.endr
+.hword (HandleWSP-OBFNABranchOnCharacter)/2 @ '\r'
+@FillSpaceBetweenChars '\r', ' ', (ErrorCharArg-OBFNABranchOnCharacter)/2
+.rept ' ' - '\r' - 1
+	.hword (ErrorCharArg-OBFNABranchOnCharacter)/2
+.endr
+.hword (HandleWSP-OBFNABranchOnCharacter)/2 @ ' '
+@FillSpaceBetweenChars ' ', '+', (ErrorCharArg-OBFNABranchOnCharacter)/2
+.rept '+' - ' ' - 1
+	.hword (ErrorCharArg-OBFNABranchOnCharacter)/2
+.endr
+.hword (ArgHandlePlus-OBFNABranchOnCharacter)/2 @ '+'
+.hword (ArgHandleNullOrComma-OBFNABranchOnCharacter)/2 @ ','
+.hword (ArgHandleMinus-OBFNABranchOnCharacter)/2 @ '-'
+@FillSpaceBetweenChars '-', '0', (ErrorCharArg-OBFNABranchOnCharacter)/2
+.rept '0' - '-' - 1
+	.hword (ErrorCharArg-OBFNABranchOnCharacter)/2
+.endr
+.hword (ArgHandleNaught-OBFNABranchOnCharacter)/2 @ '0'
+.rept 9
+	.hword (ArgHandleDigits-OBFNABranchOnCharacter)/2 @ '[1-9]'
+.endr
+@FillSpaceBetweenChars '9', '[', (ErrorCharArg-OBFNABranchOnCharacter)/2
+.rept '[' - '9' - 1
+	.hword (ErrorCharArg-OBFNABranchOnCharacter)/2
+.endr
+.hword (ArgHandleLeftBracket-OBFNABranchOnCharacter)/2 @ '['
+@FillSpaceBetweenChars '[', ']', (ErrorCharArg-OBFNABranchOnCharacter)/2
+.rept ']' - '[' - 1
+	.hword (ErrorCharArg-OBFNABranchOnCharacter)/2
+.endr
+.hword (ArgHandleRightBracket-OBFNABranchOnCharacter)/2 @ ']'
+@FillSpaceBetweenChars ']', 'l', (ErrorCharArg-OBFNABranchOnCharacter)/2
+.rept 'l' - ']' - 1
+	.hword (ErrorCharArg-OBFNABranchOnCharacter)/2
+.endr
+.hword (ArgHandleL-OBFNABranchOnCharacter)/2 @ 'l'
+@FillSpaceBetweenChars 'l', 'p', (ErrorCharArg-OBFNABranchOnCharacter)/2
+.rept 'p' - 'l' - 1
+	.hword (ErrorCharArg-OBFNABranchOnCharacter)/2
+.endr
+.hword (ArgHandleP-OBFNABranchOnCharacter)/2 @ 'p'
+@FillSpaceBetweenChars 'p', 'r', (ErrorCharArg-OBFNABranchOnCharacter)/2
+.rept 'r' - 'p' - 1
+	.hword (ErrorCharArg-OBFNABranchOnCharacter)/2
+.endr
+.hword (ArgHandleR-OBFNABranchOnCharacter)/2 @ 'r'
+.hword (ArgHandleS-OBFNABranchOnCharacter)/2 @ 's'
+@FillSpaceBetweenChars 's', 256, (ErrorCharArg-OBFNABranchOnCharacter)/2
+.rept 255 - 's'
+	.hword (ErrorCharArg-OBFNABranchOnCharacter)/2
+.endr
+
 @ end of table
 
-.equ bufsize_format, 1024 @ store user inputted format string: should be enough for testing purposes
-.equ bufsize_argument, 1024 @ store user inputted argument string: should be enough for testing purposes
+.equ bufsize_format, 256 @ store user inputted format string: should be enough for testing purposes
+.equ bufsize_argument, 256 @ store user inputted argument string: should be enough for testing purposes
 
 FormatString: @ for the user application tester
 .rept bufsize_format
@@ -103,6 +184,7 @@ OutputString: // keeps ascii characters while processing before printout
 .rept OUTPUTSTRINGSIZE + 1 @ could keep the \0 terminator so we can flush this beast as a string
 	.byte 0
 .endr
+.align
 
 Number: // keeps internal representation of number (unsigned) for manipulation
 .rept MAXNUMBYTESIZE // ceiling of maximum bytelength/4
@@ -112,6 +194,11 @@ Number: // keeps internal representation of number (unsigned) for manipulation
 PrintCharStaticVars: @ for functions that do printing (static store)
 	@ stores regvar_buffer, regvar_buffercount, regvar_printedchars, regvar_outputfunc
 .word 0, 0, 0, 0
+
+TheUserStack: @ we keep values of the user registers here
+.rept 16
+	.word 0
+.endr
 		
 ArgValue: // keeps values of argument fetched from the argument string, (in ObtainValueFromNextArg)
 // and value calculated if using registers values as arguments (that is, not a buffer/number in memory)
@@ -124,6 +211,20 @@ Buffer: // buffer that stores the string to be passed to outputfunc
 .rept BUFFERSIZE+1  @ important to have the \0 terminator for the 'full buffer flushes'
 	.byte 0
 .endr
+.align
+ErrorCharArgMsg:
+	.ascii "Error: detected an invalid "
+ArgStrOffendingChar: @ place here the offending spurious character to be reported in an error message
+	.byte 0
+	.asciz " character at position in an argument specifier in the argument string\n"
+.align
+
+ErrorCharMsg:
+		.ascii "Error: detected an invalid "
+OffendingChar: @ place here the offending spurious character to be reported in an error message
+	.byte 0
+	.asciz " character in a format specifier in the format string\n"
+.align
 
 DigitsLookup:
 .byte '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'x'

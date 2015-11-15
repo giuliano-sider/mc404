@@ -1,6 +1,6 @@
 printf_baremetal: @ r0: outputfunc, r1: formatstr, r2: argumentstr
 
-.equ BUFFERSIZE, 1024 
+.equ BUFFERSIZE, 256
 	@ actual size of buffer that holds chars before they go out to outputfunc
 .equ MAXNUMBYTESIZE, BUFFERSIZE @ we can print-format numbers of up to BUFFERSIZE==1024 bytes.
 	@ maximum number of bytes a number (in memory) can have and still be print-formatted by
@@ -9,6 +9,7 @@ printf_baremetal: @ r0: outputfunc, r1: formatstr, r2: argumentstr
 	@ this buffer holds the formatted print number's ascii codes before it is printed
 
 push { r0-r12, lr } @ we keep track of sp. lr is pc. original lr is not available, clobbered during branch and link.
+
 regvar_char .req r0
 regvar_formatstr .req r10 
 regvar_argumentstr .req r11
@@ -20,7 +21,22 @@ regvar_width .req r7
 regvar_length .req r8
 regvar_state .req r9
 
+.equ readformatstr, 0
+.equ readflags, 1
+.equ readwidth, 2
+.equ readlength, 3
+.equ readformatspecifier, 4
+
 .equ printf_varstackframesize, 0 @ (in words) if we keep variables on the stack, we'll have to move this
+	
+	ldr r14, =TheUserStack @ we'll keep the user's registers in a friendly table, indexed by regnum.
+	stmia r14, { r0-r12 }
+	add r0, sp, 14*4 @ user's stack pointer (we saved 14 registers)
+	str r0, [r14, 13*4] @ r13 === sp 
+	mov r0, r14
+	ldr r14, [sp, 13*4] @ restore lr
+	str r14, [r0, 15*4] @ lr is user's pc. we dont have access to user's lr.
+	ldr r0, [sp] @ restore r0 (outputfunc is there)
 
 	ldr r3, =PrintCharStaticVars @ these variables we set aside as static variables at this location.
 	ldmia r3, {r4, r5, r6, r7} @ buffer, buffercount, printedchars, outputfunc
@@ -40,69 +56,19 @@ regvar_state .req r9
 ReadFormatString:
 
 ldrb regvar_char, [regvar_formatstr, regvar_i] @ char = formatstr[i]
-tbb [regvar_asciitable, regvar_char] @ branch by ascii character to the right handlers
+tbh [regvar_asciitable, regvar_char, lsl 1] @ branch by ascii character to the right handlers
 PrintfBranchOnAsciiCharacter:
 
-	tbb [pc, regvar_state] @ (\0)
-	HandleNullByte:
-	.byte (FinishPrintf-HandleNullByte)/2
-	.byte (PrematurelyFinishedFormatString-HandleNullByte)/2
-	.byte (PrematurelyFinishedFormatString-HandleNullByte)/2
-	.byte (PrematurelyFinishedFormatString-HandleNullByte)/2
-	.byte (PrematurelyFinishedFormatString-HandleNullByte)/2
-	.byte 0
-
-	FinishPrintf: @ (\0, readformatstr)
-		bl PrintBuffer @ prints out whatever is in our print buffer
-		@ mov regvar_returnval === r0, regvar_printedchars === r0
-		pop { r0-r12, lr }
-		ldr r0, =PrintCharStaticVars
-		ldr r0, [r0, 8] @ printedchars stored here.
-	mov pc, lr
-
-	PrematurelyFinishedFormatString: @ (\0, not readformatstr)
-		ldr r0, =PrematurelyFinishedFormatStringMsg
-		bl UnwindPrintfOnError @@@@ unwind printf's stack, load error message at sp, return -1
-
-BranchToHandlePercent:
-	tbb [pc, regvar_state] @ (%)
-	HandlePercent:
-	.byte (BeginReadingFormatSpecifier-HandlePercent)/2
-	.byte (TreatPercentSpecifier-HandlePercent)/2
-	.byte (TreatPercentSpecifier-HandlePercent)/2
-	.byte (TreatPercentSpecifier-HandlePercent)/2
-	.byte (TreatPercentSpecifier-HandlePercent)/2
-	.byte 0
-
-	BeginReadingFormatSpecifier: @ (%, readformatstr)
-		mov regvar_flags, 0 @ default: all flags clear (' ', '#', '+', '-', '0'), including auxiliary flags.
-		mov regvar_width, 0 @ default: no minimum field width
-		mov regvar_length, 4 @ default: 4 byte numbers (when dealing with numbers, this is relevant)
-		add regvar_i, 1 @ consume the '%'
-		mov regvar_state, readflags @ begin looking at (optional) flags
-		b ReadFormatString 
-		@ break
-	TreatPercentSpecifier: @ (%, not readformatstr) 
-		// optional error/warning check for spurious format modifiers (have no effect)
-		mov regvar_state, readformatstr @ go back to reading and printing characters.
-		@ Fall through!
-	IncrementI_AndPrintChar: @ every time a character (not %) is read in readformatstr 
-		add regvar_i, 1 
-	// 	@ fall through
-	// PrintCharacter:
-		bl PrintChar @ print the character loaded in r0 (formerly formatstr[i])
-		b ReadFormatString 
-		@ break
+	
 
 BranchToHandlePlus:
-	tbb [pc, regvar_state] @ (+)
+	tbh [pc, regvar_state, lsl 1] @ (+)
 	HandlePlus:
-	.byte (IncrementI_AndPrintChar-HandlePlus)/2
-	.byte (PlusFlag-HandlePlus)/2
-	.byte (ErrorChar-HandlePlus)/2
-	.byte (ErrorChar-HandlePlus)/2
-	.byte (ErrorChar-HandlePlus)/2
-	.byte 0
+	.hword (IncrementI_AndPrintChar-HandlePlus)/2
+	.hword (PlusFlag-HandlePlus)/2
+	.hword (ErrorChar-HandlePlus)/2
+	.hword (ErrorChar-HandlePlus)/2
+	.hword (ErrorChar-HandlePlus)/2
 
 	PlusFlag: @ (+, readflags)
 		// optional error/warning check: is flag already set?
@@ -110,21 +76,15 @@ BranchToHandlePlus:
 		add regvar_i, 1
 		b ReadFormatString
 
-	ErrorChar: @ invalid character during format specifier read
-		ldr r1, =OffendingChar
-		strb regvar_char, [r1] @ this character will be inserted in a sui generis error message
-		ldr r0, =ErrorCharMsg
-		bl UnwindPrintfOnError @ unwind printf's stack, put the error message at sp, return -1
 
 BranchToHandleDash:
-	tbb [pc, regvar_state] @ (-)
+	tbh [pc, regvar_state, lsl 1] @ (-)
 	HandleDash:
-	.byte (IncrementI_AndPrintChar-HandleDash)/2
-	.byte (DashFlag-HandleDash)/2
-	.byte (ErrorChar-HandleDash)/2
-	.byte (ErrorChar-HandleDash)/2
-	.byte (ErrorChar-HandleDash)/2
-	.byte 0	
+	.hword (IncrementI_AndPrintChar-HandleDash)/2
+	.hword (DashFlag-HandleDash)/2
+	.hword (ErrorChar-HandleDash)/2
+	.hword (ErrorChar-HandleDash)/2
+	.hword (ErrorChar-HandleDash)/2	
 
 	DashFlag: @ (-, readflags)
 		// optional error/warning check: is flag already set?
@@ -133,14 +93,14 @@ BranchToHandleDash:
 		b ReadFormatString	
 
 BranchToHandleSpace:
-	tbb [pc, regvar_state] @ (' ')
+	tbh [pc, regvar_state, lsl 1] @ (' ')
 	HandleSpace:
-	.byte (IncrementI_AndPrintChar-HandleSpace)/2
-	.byte (SpaceFlag-HandleSpace)/2
-	.byte (ErrorChar-HandleSpace)/2
-	.byte (ErrorChar-HandleSpace)/2
-	.byte (ErrorChar-HandleSpace)/2
-	.byte 0	
+	.hword (IncrementI_AndPrintChar-HandleSpace)/2
+	.hword (SpaceFlag-HandleSpace)/2
+	.hword (ErrorChar-HandleSpace)/2
+	.hword (ErrorChar-HandleSpace)/2
+	.hword (ErrorChar-HandleSpace)/2
+	
 
 	SpaceFlag: @ (' ', readflags)
 		// optional error/warning check: is flag already set?
@@ -149,14 +109,14 @@ BranchToHandleSpace:
 		b ReadFormatString
 
 BranchToHandlePound:
-	tbb [pc, regvar_state] @ ('#')
+	tbh [pc, regvar_state, lsl 1] @ ('#')
 	HandlePound:
-	.byte (IncrementI_AndPrintChar-HandlePound)/2
-	.byte (PoundFlag-HandlePound)/2
-	.byte (ErrorChar-HandlePound)/2
-	.byte (ErrorChar-HandlePound)/2
-	.byte (ErrorChar-HandlePound)/2
-	.byte 0	
+	.hword (IncrementI_AndPrintChar-HandlePound)/2
+	.hword (PoundFlag-HandlePound)/2
+	.hword (ErrorChar-HandlePound)/2
+	.hword (ErrorChar-HandlePound)/2
+	.hword (ErrorChar-HandlePound)/2
+		
 
 	PoundFlag: @ ('#', readflags)
 		// optional error/warning check: is flag already set?
@@ -166,20 +126,97 @@ BranchToHandlePound:
 
 
 BranchToHandleZero:
-	tbb [pc, regvar_state] @ (0)
+	tbh [pc, regvar_state, lsl 1] @ (0)
 	HandleNaught:
-	.byte (IncrementI_AndPrintChar-HandleNaught)/2
-	.byte (NaughtFlag-HandleNaught)/2
-	.byte (ReadWidthNum-HandleNaught)/2
-	.byte (ReadLengthNum-HandleNaught)/2
-	.byte (ErrorChar-HandleNaught)/2
-	.byte 0	
+	.hword (IncrementI_AndPrintChar-HandleNaught)/2
+	.hword (NaughtFlag-HandleNaught)/2
+	.hword (ReadWidthNum-HandleNaught)/2
+	.hword (ReadLengthNum-HandleNaught)/2
+	.hword (ErrorChar-HandleNaught)/2	
 
 	NaughtFlag: @ (0, readflags)
 		// optional error/warning check: is flag already set?
 		orr regvar_flags, 16 @ flags.naught <- true
 		add regvar_i, 1
 		b ReadFormatString
+
+
+BranchToHandleStar:
+	tbh [pc, regvar_state, lsl 1] @ (*)
+	HandleStar:
+	.hword (IncrementI_AndPrintChar-HandleStar)/2
+	.hword (WidthArg-HandleStar)/2
+	.hword (WidthArg-HandleStar)/2
+	.hword (ErrorChar-HandleStar)/2
+	.hword (ErrorChar-HandleStar)/2
+
+	WidthArg: @ (*, readflags/readwidth)
+		mov r0, regvar_argumentstr @ pointer to the argument string
+		mov r1, regvar_j @ index to the argument string
+		mov r2, 4 @ length (in bytes) of the number to be obtained (an integer that specifies the minimium field width)
+		bl ObtainValueFromNextArg @ string -> r0, index -> r1, length -> r2 ... ptr_to_arg -> r0, newindex -> r1
+		cmp r0, 0 @ if ObtainValueFromNextArg returned a null pointer
+		beq ErrorObtainingArgument @ ObtainValueFromNextArg left an error message at sp. unwind printf and leave msg at sp, return -1
+		mov regvar_j, r1
+		ldr regvar_width, [r0] @ r0, returned by OVFNA, is a pointer to the argument containing the width,
+		cmp regvar_width, 0
+		blt NegativeFieldWidthError @ thought you would crash my app with a negative width, fool?
+		add regvar_i, 1
+		b ReadFormatString
+
+BranchToHandleL:
+	tbh [pc, regvar_state, lsl 1] @ (l)
+	HandleL:
+	.hword (IncrementI_AndPrintChar-HandleL)/2
+	.hword (SetLengthL-HandleL)/2
+	.hword (SetLengthL-HandleL)/2
+	.hword (SetLengthL-HandleL)/2
+	.hword (ErrorChar-HandleL)/2
+
+	SetLengthL: @ (l, readflags/readwidth/readlength)
+		add regvar_i, 1
+		cmp regvar_length, 4 @ if this is the first L, double the default length of 4 bytes
+		itt eq
+		lsleq regvar_length, 1
+		beq ReadFormatString
+		cmp regvar_length, 8 @ if this is the second L, double again to 16 bytes and move to readformatspecifier 
+		ittt eq
+		lsleq regvar_length, 1
+		moveq regvar_state, readformatspecifier
+		beq ReadFormatString
+		bl InvalidLLengthModifierError @ if we got here, then we have an invalid L (after an H, for instance)
+
+BranchToHandleH:
+	tbh [pc, regvar_state, lsl 1] @ (h, readflags/readwidth/readlength)
+	HandleH:
+	.hword (IncrementI_AndPrintChar-HandleH)/2
+	.hword (SetLengthH-HandleH)/2
+	.hword (SetLengthH-HandleH)/2
+	.hword (SetLengthH-HandleH)/2
+	.hword (ErrorChar-HandleH)/2
+
+	SetLengthH:
+		add regvar_i, 1
+		cmp regvar_length, 4 @ if this is the first H, halve the default length of 4 bytes
+		itt eq
+		lsreq regvar_length, 1
+		beq ReadFormatString
+		cmp regvar_length, 2 @ if this is the second H, halve again to 1 byte and move to readformatspecifier 
+		ittt eq
+		lsreq regvar_length, 1
+		moveq regvar_state, readformatspecifier
+		beq ReadFormatString
+		bl InvalidHLengthModifierError @ if we got here, then we have an invalid H (after an L, for instance)
+
+BranchToHandleDigits:
+	tbh [pc, regvar_state, lsl 1] @ ([1-9])
+	HandleDigits:
+	.hword (IncrementI_AndPrintChar-HandleDigits)/2
+	.hword (ReadWidthNum-HandleDigits)/2
+	.hword (ReadWidthNum-HandleDigits)/2
+	.hword (ReadLengthNum-HandleDigits)/2
+	.hword (ErrorChar-HandleDigits)/2	
+
 
 	ReadWidthNum: @ (0, readwidth) @ read the minimum field width as a decimal number
 		mov r0, regvar_formatstr
@@ -198,88 +235,8 @@ BranchToHandleZero:
 		cmp regvar_length, MAXNUMBYTESIZE
 		bhi InvalidByteSizeError @ if bounds are higher (non positive or bigger) than the MAXNUMBYTESIZE, error
 		mov regvar_i, r1
-		mov regvar_state, readspecifier
+		mov regvar_state, readformatspecifier
 		b ReadFormatString
-
-BranchToHandleStar:
-	tbb [pc, regvar_state] @ (*)
-	HandleStar:
-	.byte (IncrementI_AndPrintChar-HandleStar)/2
-	.byte (WidthArg-HandleStar)/2
-	.byte (WidthArg-HandleStar)/2
-	.byte (ErrorChar-HandleStar)/2
-	.byte (ErrorChar-HandleStar)/2
-	.byte 0
-
-	WidthArg: @ (*, readflags/readwidth)
-		mov r0, regvar_argumentstr @ pointer to the argument string
-		mov r1, regvar_j @ index to the argument string
-		mov r2, 4 @ length (in bytes) of the number to be obtained (an integer that specifies the minimium field width)
-		bl ObtainValueFromNextArg @ string -> r0, index -> r1, length -> r2 ... ptr_to_arg -> r0, newindex -> r1
-		cmp r0, 0 @ if ObtainValueFromNextArg returned a null pointer
-		beq ErrorObtainingArgument @ ObtainValueFromNextArg left an error message at sp. unwind printf and leave msg at sp, return -1
-		mov regvar_j, r1
-		ldr regvar_width, [r0] @ r0, returned by OVFNA, is a pointer to the argument containing the width,
-		cmp regvar_width, 0
-		blt NegativeFieldWidthError @ thought you would crash my app with a negative width, fool?
-		add regvar_i, 1
-		b ReadFormatString
-
-BranchToHandleL:
-	tbb [pc, regvar_state] @ (l)
-	HandleL:
-	.byte (IncrementI_AndPrintChar-HandleL)/2
-	.byte (SetLengthL-HandleL)/2
-	.byte (SetLengthL-HandleL)/2
-	.byte (SetLengthL-HandleL)/2
-	.byte (ErrorChar-HandleL)/2
-	.byte 0
-
-	SetLengthL: @ (l, readflags/readwidth/readlength)
-		add regvar_i, 1
-		cmp regvar_length, 4 @ if this is the first L, double the default length of 4 bytes
-		itt eq
-		lsleq regvar_length, 1
-		beq ReadFormatString
-		cmp regvar_length, 8 @ if this is the second L, double again to 16 bytes and move to readformatspecifier 
-		ittt eq
-		lsleq regvar_length, 1
-		moveq regvar_state, readformatspecifier
-		beq ReadFormatString
-		bl InvalidLLengthModifierError @ if we got here, then we have an invalid L (after an H, for instance)
-
-BranchToHandleH:
-	tbb [pc, regvar_state] @ (h, readflags/readwidth/readlength)
-	HandleH:
-	.byte (IncrementI_AndPrintChar-HandleH)/2
-	.byte (SetLengthH-HandleH)/2
-	.byte (SetLengthH-HandleH)/2
-	.byte (SetLengthH-HandleH)/2
-	.byte (ErrorChar-HandleH)/2
-	.byte 0	
-
-	SetLengthH:
-		add regvar_i, 1
-		cmp regvar_length, 4 @ if this is the first H, halve the default length of 4 bytes
-		itt eq
-		lsreq regvar_length, 1
-		beq ReadFormatString
-		cmp regvar_length, 2 @ if this is the second H, halve again to 1 byte and move to readformatspecifier 
-		ittt eq
-		lsreq regvar_length, 1
-		moveq regvar_state, readformatspecifier
-		beq ReadFormatString
-		bl InvalidHLengthModifierError @ if we got here, then we have an invalid H (after an L, for instance)
-
-BranchToHandleDigits:
-	tbb [pc, regvar_state] @ ([1-9])
-	HandleDigits:
-	.byte (IncrementI_AndPrintChar-HandleDigits)/2
-	.byte (ReadWidthNum-HandleDigits)/2
-	.byte (ReadWidthNum-HandleDigits)/2
-	.byte (ReadLengthNum-HandleDigits)/2
-	.byte (ErrorChar-HandleDigits)/2
-	.byte 0	
 
 @ now the actual specifiers:
 
@@ -326,9 +283,9 @@ regvar_digitlookup .req r3
 		beq ErrorObtainingArgument @ ObtainValueFromNextArg left an error message at sp. unwind printf and leave msg at sp, return -1
 		mov regvar_j, r1
 		//mov regvar_valueptr, r0 @ for safekeeping. note: we have anull byte terminated string here.
-		bl StrLength @ string -> r0 ... r0->string, r1 -> string length.
+		bl StringLength @ string -> r0 ... r0->string, r1 -> string length.
 	CharacterSpecBranchesInHere: @ must have length of 1 loaded in r1, and a null byte terminated string loaded in valueptr===r0.
-		sub regvar_width, r1 @ width - StrLen(string) characters have to be printed to make the minimum field width. if non-positive, then no characters are printed
+		sub regvar_width, r1 @ width - StringLength(string) characters have to be printed to make the minimum field width. if non-positive, then no characters are printed
 		tst regvar_flags, 8 @ if the dash flag is set, we left justify the field (within the field width)
 		beq RightJustifyString
 			//mov r0, regvar_valueptr @ print the string first, then the padding => left justification
@@ -560,8 +517,8 @@ regvar_digitlookup .req r3
 			PrintFormattedNumberPrefixes regvar_flags, regvar_digitlookup
 			@ prints 0 or 0x prefixes if corresponding flags are set. prints ' ', +, or - if corresponding flags are set.
 
-			mov r0, regvar_string
-			mov r1, regvar_stringlength
+			//mov r0, regvar_string
+			//mov r1, regvar_stringlength
 			bl PrintStringInReverse @ string -> r0, length -> r1 ... echoes r0, r1
 
 			b FinishFormattingNumber
@@ -581,15 +538,71 @@ regvar_digitlookup .req r3
 	pop { r11, r12 } @ life is 
 		mov regvar_state, readformatstr @ continue to read characters from the string.
 		add regvar_i, 1 @ consumes the format specifier character
-		b FinishFormattingNumber
+		b ReadFormatString
+
+BranchToHandleNullByte:
+	tbh [pc, regvar_state, lsl 1] @ (\0)
+	HandleNullByte:
+	.hword (FinishPrintf-HandleNullByte)/2
+	.hword (PrematurelyFinishedFormatString-HandleNullByte)/2
+	.hword (PrematurelyFinishedFormatString-HandleNullByte)/2
+	.hword (PrematurelyFinishedFormatString-HandleNullByte)/2
+	.hword (PrematurelyFinishedFormatString-HandleNullByte)/2
+
+	FinishPrintf: @ (\0, readformatstr)
+		bl PrintBuffer @ prints out whatever is in our print buffer
+		@ mov regvar_returnval === r0, regvar_printedchars === r0
+		pop { r0-r12, lr }
+		ldr r0, =PrintCharStaticVars
+		ldr r0, [r0, 8] @ printedchars stored here.
+	mov pc, lr
+
+	PrematurelyFinishedFormatString: @ (\0, not readformatstr)
+		ldr r0, =PrematurelyFinishedFormatStringMsg
+		bl UnwindPrintfOnError @@@@ unwind printf's stack, load error message at sp, return -1
+
+BranchToHandlePercent:
+	tbh [pc, regvar_state, lsl 1] @ (%)
+	HandlePercent:
+	.hword (BeginReadingFormatSpecifier-HandlePercent)/2
+	.hword (TreatPercentSpecifier-HandlePercent)/2
+	.hword (TreatPercentSpecifier-HandlePercent)/2
+	.hword (TreatPercentSpecifier-HandlePercent)/2
+	.hword (TreatPercentSpecifier-HandlePercent)/2
+
+	BeginReadingFormatSpecifier: @ (%, readformatstr)
+		mov regvar_flags, 0 @ default: all flags clear (' ', '#', '+', '-', '0'), including auxiliary flags.
+		mov regvar_width, 0 @ default: no minimum field width
+		mov regvar_length, 4 @ default: 4 byte numbers (when dealing with numbers, this is relevant)
+		add regvar_i, 1 @ consume the '%'
+		mov regvar_state, readflags @ begin looking at (optional) flags
+		b ReadFormatString 
+		@ break
+	TreatPercentSpecifier: @ (%, not readformatstr) 
+		// optional error/warning check for spurious format modifiers (have no effect)
+		mov regvar_state, readformatstr @ go back to reading and printing characters.
+		@ Fall through!
+	IncrementI_AndPrintChar: @ every time a character (not %) is read in readformatstr 
+		add regvar_i, 1 
+	// 	@ fall through
+	// PrintCharacter:
+		bl PrintChar @ print the character loaded in r0 (formerly formatstr[i])
+		b ReadFormatString 
+		@ break
 
 	
+	ErrorChar: @ invalid character during format specifier read
+		ldr r1, =OffendingChar
+		strb regvar_char, [r1] @ this character will be inserted in a sui generis error message
+		ldr r0, =ErrorCharMsg
+		bl UnwindPrintfOnError @ unwind printf's stack, put the error message at sp, return -1
 
+	NegativeFieldWidthError: @ ObtainValueFromNextArg left an error message at sp. unwind printf and leave msg at sp, return -1
+		ldr r0, =NegativeFieldWidthErrorMsg
+		bl UnwindPrintfOnError @ unwind printf's stack, put the error message at sp, return -1
 
-
-
-	ErrorObtainingArgument: @ ObtainValueFromNextArg left an error message at sp. unwind printf and leave msg at sp, return -1
-		ldr r0, [sp]
+	ErrorObtainingArgument: @ ObtainValueFromNextArg left an error message at sp. unwind printf and leave msg at r1, return -1
+		mov r0, r1
 		bl UnwindPrintfOnError @ unwind printf's stack, put the error message at sp, return -1
 
 	InvalidHLengthModifierError:
@@ -604,9 +617,9 @@ regvar_digitlookup .req r3
 
 UnwindPrintfOnError: 
 @ unwinds printf's stack and places on the stack the error message passed in at r0. return -1 (error)
-	pop { r1 } @ r0 is garbage
-	pop { r1-r12, lr } @ restore user registers
-	str r0, [sp] @ error message stored on the stack.
+	add sp, 8
+	pop { r2-r12, lr } @ restore user registers
+	mov r1, r0 @ error message stored in r1
 	mov r0, -1
 mov pc, lr 
 
@@ -616,12 +629,7 @@ mov pc, lr
 @ !! Error Messages !!
 
 
-	ErrorCharMsg:
-		.ascii "Error: detected an invalid "
-	OffendingChar: @ place here the offending spurious character to be reported in an error message
-		.byte 0
-		.asciz " character in a format specifier in the format string\n"
-	.align
+	
 	InvalidHLengthModifierErrorMsg: 
 		.asciz "Error: invalid length modifier (spurious 'h'). Format: l<decimal number> | ll | l | h | hh\n"
 	.align
@@ -633,6 +641,9 @@ mov pc, lr
 	.align
 	PrematurelyFinishedFormatStringMsg:
 		.asciz "Error: format string terminated in the middle of a format specifier\n"
+	.align
+	NegativeFieldWidthErrorMsg:
+		.asciz "Error: width specifier cannot be negative\n"
 	.align
 
 /*
