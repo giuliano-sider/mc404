@@ -259,10 +259,9 @@ regvar_digitlookup .req r3
 		beq ErrorObtainingArgument 
 	@ if ObtainValueFromNextArg returns null, it leaves an error message at sp. unwind printf and leave msg at sp, return -1
 		mov regvar_j, r1
-		ldrb r0, [r1] @ load the character
-		ldr r0, =ArgValue 
-			@ keep the character (and a succeeding null byte, available in the register) here to be printed as a string.
-		str r1, [r0]
+		mov r1, 0
+		strb r1, [r0, 1] @ store a null byte after our character
+			@ keep the character (and a succeeding null byte) in r0 to be printed as a string (handle field formatting, etc.)
 		mov r1, 1 @ string length of 1 goes here. then we can branch to the appropriate label in the string spec formatter.
 		b CharacterSpecBranchesInHere @ take care of the rest print-formatting this character as a string of length 1.
 		

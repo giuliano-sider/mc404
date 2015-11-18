@@ -309,7 +309,7 @@ PrintString: @ string -> r0 ... r0-> string (echo)
 push { r0-r1, lr }
 	mov r1, r0 @ keep the string here 
 PrintStringLoop:
-	ldrb r0, [r1]
+	ldrb r0, [r1], 1
 	cbz r0, FinishedPrintString @ when we detect a null byte, bail
 		bl PrintChar @ provides clobber protection
 	b PrintStringLoop
@@ -544,8 +544,8 @@ OBFNABranchOnCharacter:
 		it eq
 		sxtheq regvar_argscratch1, regvar_argscratch1
 		cmp regvar_arglength, 3 @ 3 byte register value copied to the internal buffer (who the heck will use this feature)
-		ittt eq
-		sxtheq regvar_argscratch1, regvar_argscratch1
+		itt eq
+		@sxtheq regvar_argscratch1, regvar_argscratch1
 		lsleq regvar_argscratch1, 8
 		asreq regvar_argscratch1, 8 @ we sign extended a 3 byte register 
 		str regvar_argscratch1, [regvar_args] @ now we store it in the internal buffer

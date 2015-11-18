@@ -34,15 +34,15 @@ push { lr }
 UserPromptLoop:
 	ldr r0, =UserPromptMsg
 	bl printf
-	@ldr r0, =PromptString
-	@ldr r1, =FormatString
-	@ldr r2, =ArgumentString @ read 2 strings from the user
-	@bl scanf
-	@cmp r0, 2 @ check if input was read (both format specifiers having been filled)
-	@bne InputError
+	@ldr r0, =PromptString @ release
+	@ldr r1, =FormatString @ release
+	@ldr r2, =ArgumentString @ read 2 strings from the user @ release
+	@bl scanf @ release
+	@cmp r0, 2 @ check if input was read (both format specifiers having been filled) @ release
+	@bne InputError @ release
 	ldr r0, =puts @ glibc function used for writing string to stdout 
-	ldr r1, =FormatStringTest @ testing
-	ldr r2, =ArgumentStringTest @ testing
+	ldr r1, =FormatStringTest @ldr r1, =FormatStringTest @ testing
+	ldr r2, =ArgumentStringTest @ldr r2, =ArgumentStringTest @ testing
 	bl printf_baremetal
 	cmp r0, -1
 	itt eq
@@ -64,9 +64,9 @@ ExitUserPromptLoop:
 pop { pc }
 
 FormatStringTest: 
-	.asciz "%d %i %i %i %i %i %i %i %i %i %i %i %i %i %i"
+	.asciz "%c %hu %l3i"
 ArgumentStringTest: 
-	.asciz "r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, sp, pc"
+	.asciz "r2,r0,r0"
 
 WelcomeMsg: .asciz "Welcome to the printf bare metal test module. The world's finest bare metal ARM assembly printf. ^D to quit\n"
 UserPromptMsg: .asciz "USAGE: <FormatString> \\n <ArgumentString> \\n \n"
