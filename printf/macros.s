@@ -435,7 +435,7 @@ OBFNABranchOnCharacter:
 		push { r0 }
 		mov r0, 13
 		bl LoadRegisterValue @ loads the contents of user's register 13 (sp) in r0
-		str r0, [regvar_args, regvar_arg] @ store register in its place in the argument vector
+		str r0, [regvar_args, regvar_arg, lsl 2] @ store register in its place in the argument vector
 		pop { r0 }
 		add regvar_arg, 1 @ read next argument
 		add regvar_argstate, regvar_arg, matcharg @ current state is matcharg. 
@@ -453,7 +453,7 @@ OBFNABranchOnCharacter:
 		push { r0  }
 		mov r0, 15
 		bl LoadRegisterValue @ loads the contents of user's register 15 (pc) in r0
-		str r0, [regvar_args, regvar_arg] @ store register in its place in the argument vector
+		str r0, [regvar_args, regvar_arg, lsl 2] @ store register in its place in the argument vector
 		pop { r0 }
 		add regvar_arg, 1 @ read next argument
 		add regvar_argstate, regvar_arg, matcharg @ current state is matcharg. 
@@ -468,7 +468,7 @@ OBFNABranchOnCharacter:
 		bl ParseStringAsDecimalNumber @ string -> r0, index-> r1 ... r0 -> number read, r1 -> index of first non (decimal) digit
 		@ new index (j) is in r1.
 		bl LoadRegisterValue @ loads the contents of user's register in r0.
-		str r0, [regvar_args, regvar_arg] @ store register in its place in the argument vector
+		str r0, [regvar_args, regvar_arg, lsl 2] @ store register in its place in the argument vector
 		pop { r0 }
 		add regvar_arg, 1 @ read next argument
 		add regvar_argstate, regvar_arg, matcharg @ current state is matcharg. 
@@ -489,7 +489,7 @@ OBFNABranchOnCharacter:
 		add regvar_argj, 1 @ advance beyond the 'x'
 		bl ParseStringAsHexNumber
 	NowStoreTheConstant_OhWhatJoyItIsToRideAnOpenSled:
-		str r0, [regvar_args, regvar_arg] @ store hex/octal constant in its place in the argument vector
+		str r0, [regvar_args, regvar_arg, lsl 2] @ store hex/octal constant in its place in the argument vector
 		pop { r0 }
 		add regvar_arg, 1 @ read next argument
 		add regvar_argstate, regvar_arg, matcharg @ current state is matcharg. 
@@ -501,12 +501,12 @@ OBFNABranchOnCharacter:
 		bge ErrorCharArg @ invalid 'r' in argument string 
 		push { r0 }
 		bl ParseStringAsDecimalNumber
-		str r0, [regvar_args, regvar_arg] @ store decimal constant in its place in the argument vector
+		str r0, [regvar_args, regvar_arg, lsl 2] @ store decimal constant in its place in the argument vector
 		pop { r0 }
 		add regvar_arg, 1 @ read next argument
 		add regvar_argstate, regvar_arg, matcharg @ current state is matcharg. 
 			@ if arg==1, goes to matchsign. else if arg==2, goes to matchshift. else if arg==3, goes to matchrightbracket.
-		add regvar_argj, 1
+		@@@@BUGFIXED : parsestring already parks at the next character after the decimal number @ add regvar_argj, 1 
 		b ReadArgumentString @ do loop
 
 	HandleWSP: @ [\n\t \r]

@@ -444,8 +444,9 @@ regvar_digitlookup .req r3
 		moveq regvar_totalstringlength, 1
 		moveq regvar_stringlength, 1
 		beq NowConsiderSignFormatting @ doesnt need to be in the IT block.
-@ do we print a 0, 0x prefix? do we print a sign (or a space in its place?) ? 
-@ do we left or right justify within field width? if right justify, do we left pad with zeroes? if not, do we pad with spaces ?
+@ now: do we print a 0, 0x prefix? do we print a sign (or a space in its place?) ? 
+@ do we left or right justify within field width? if right justify, do we left pad with zeroes? 
+@ if not, do we pad with spaces ?
 		tst regvar_flags, (1<<1) @ is the # flag set?
 		beq NowConsiderSignFormatting @ if not, go on to the next step
 		//mov r0, regvar_number
@@ -453,7 +454,7 @@ regvar_digitlookup .req r3
 		//push { r2 }
 		//bl IsNumberZero @ number -> r0, number word size -> r1 ... r0, r1: echo. r2 -> zero if number is zero, nonzero otherwise
 		//cmp r2, 0 
-	@ assembly is not a good way to develop software. why should i be worried about register allocation to this extent
+	// assembly is not a good way to develop software. why should i be worried about register allocation to this extent
 		//itt eq
 		//popeq { r2 }
 		//beq NowConsiderSignFormatting @ if number is zero go on to the next step
