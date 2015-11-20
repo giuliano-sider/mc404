@@ -6,8 +6,8 @@ int main() {
 	//unsigned short d, D, quit=0;
 	//unsigned short q, r;
 
-	int merda = 0xc3; // 0b11000011;
-	int mijo = 20;
+	int m = 0xc3; // 0b11000011;
+	int mm = 20;
 
 	printf ( "%0# -10x\n", printf );
 	

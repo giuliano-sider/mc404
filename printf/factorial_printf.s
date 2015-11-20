@@ -3,12 +3,12 @@ Programa simples em assembly para arm-none-eabi-gcc que calcula o fatorial de um
 32 bits.
 Giuliano Sider, RA 146271, 08/09/2015
 Disciplina MC 404 C
-********************************
+******************************** MODIFIED TO TEST PRINTF's BIG NUM CAPABILITY
 FUNCTION int *factorial(int n)
 INPUT: r0 (non negative) number whose factorial is to be computed.
 OUTPUT: r0 (pointer to a buffer of 32 bit words encoding a large unsigned integer in little endian format)
 r1: length of the big number in words (the other remaining words in high memory are leading zeroes),
-r2: actual length of buffer allocated by the function, including those leading zeroes in high memory
+r2: actual length of buffer (in bytes) allocated by the function, including those leading zeroes in high memory
 SIDE EFFECTS: Clobbers r0-r3, r12, as per the ARM calling convention.
 NOTE: It is the caller's responsibility to free the buffer once done using it. 
 
@@ -28,12 +28,12 @@ input_integer: .word 0
 .text
 .align
 PromptFormat: .asciz "%i"
-OutFormat: .asciz "The factorial of %i is %i words long, stored in a buffer %i words in size. In hexadecimal:\n"
+OutFormat: .asciz "The factorial of %i is %i words long, stored in a buffer %i bytes in size.\n"
 .align
 
 .global main
 main:
-	push { r4-r7, lr }
+push { r4-r7, lr }
 	ldr r0, =PromptFormat
 	ldr r4, =input_integer
 	mov r1, r4 @ n
@@ -43,18 +43,32 @@ main:
 	bl Factorial
 	mov r5, r0 @ store pointer to buffer with answer
 	mov r6, r1 @ store size of this number in words
-	mov r7, r2 @ store size of this buffer in words ('free' doesn't need it, but we can keep it for debugging)
+	mov r7, r2 @ store size of this buffer in bytes ('free' doesn't need it, but we can keep it)
 	ldr r0, =OutFormat
 	mov r1, r4 @ n
 	mov r2, r6 @ length of num (in words)
-	mov r3, r7 @ buffer size (in words)
+	mov r3, r7 @ buffer size (in bytes)
 	bl printf
-	mov r0, r5 @ buffer
-	mov r1, r6 @ length of num (in words)
-	bl PrintBigNum
+	@ mov r0, r5 @ buffer
+	@ mov r1, r6 @ length of num (in words)
+	@ bl PrintBigNum
+	ldr r0, =puts @ printing function 
+	ldr r1, =NumFormatString
+	ldr r2, =NumArgString
+	bl printf_baremetal @ bare metal is the law
+	cmp r0, -1 
+@ returns number of printedchars, or -1 in the event of error, in which case r1 contains a pointer to error msg.
+	itt eq
+	moveq r0, r1
+	bleq puts
 	mov r0, r5 @ our responsibility to deallocate the buffer
 	bl free
-	pop { r4-r7, pc }
+pop { r4-r7, pc }
+
+NumFormatString: .asciz "%l*u\n" @ length (in bytes) specified in argument preceding the number to be formatted.
+.align
+NumArgString: .asciz "r6 lsl 2, [r5]" @ length in bytes of the number, and number (rest of buffer may have garbage)
+.align
 
 Factorial:
 n .req r4
@@ -111,7 +125,7 @@ exitfactorialinnerloop:
 	b factorialouterloop
 exitfactorialouterloop:
 	mov r1, length @ return length of number in words
-	mov r2, n @ return size of buffer in words (n)
+	mov r2, n, lsl 2 @ return size of buffer in bytes (4*n)
 	pop { r4-r7, pc } @ return to main
 bad_alloc: @ optional section if you don't want to check for memory allocation error
 	ldr r0, =bad_alloc_msg
@@ -167,3 +181,17 @@ exitprintarray:
 .align
 PrintFormat: .asciz "%08X\n"
 DonePrinting: .asciz "\n\n"
+.align
+
+@ all the printf paraphernalia follows below:
+
+.include "macros.s"
+.include "printfcode.s"
+.include "data.s"
+
+/*
+FactorialNumBuffer: @ we keep the number here
+.rept 1024
+	.byte 0
+.endr 
+*/

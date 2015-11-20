@@ -1,0 +1,41 @@
+# arquivo de configuração de dispositivos para o simulador
+
+%7segdisplays Display
+#port
+0x80000
+%7segdisplays Display
+#port
+0x80004
+%7segdisplays Display
+#port
+0x80008
+%7segdisplays Display
+#port
+0x8000c
+%7segdisplays Display
+#port
+0x80010
+%7segdisplays Display
+#port
+0x80014
+%7segdisplays Display
+#port
+0x80018
+%7segdisplays Display
+#port
+0x8001c
+
+%timer
+# port  int_type
+0x80020 0x07
+
+%leds ON_OFF
+g 0x80024
+
+%buttons LIGA
+#name port int type
+Liga 0x80028 0x00 T
+
+%buttons RESET # button for resetting the clock to 23:59:48. also pauses the clock.
+#name port int type
+Reset 0x8002c 0x00 P

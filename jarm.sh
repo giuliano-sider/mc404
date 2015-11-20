@@ -1,5 +1,6 @@
-#!/bin/sh
-# USAGE: jarm.sh -c | -d <src_file>.s
+#!/bin/bash
+
+# USAGE: jarm.sh (-c | -d) <src_file>.s
 # -c to use console I/O. -d to use a devices.txt file in the same directory. 
 file=$2
 file="./bin/${file%.*}" # rips the extension off the file
@@ -7,7 +8,7 @@ file="./bin/${file%.*}" # rips the extension off the file
 if [ "$1" == "-c" ] ; then
 	jarmopt="-c" # just use the console without any devices described in a 'devices.txt' configuration file
 elif [ "$1" == "-d" ] ; then
-	jarmopt="-d devices.txt" # load device file for JARM; we use the default here of devices.txt
+	jarmopt="-d devices.txt" # load device file for JARM; we use the default of devices.txt in the same directory
 else 
 	echo "USAGE: jarm.sh -c|-d <src_file>.s"
 	exit
@@ -42,4 +43,4 @@ arm-none-eabi-objdump -D $file.elf > $file.txt
 
 jarm $jarmopt -l $file.elf # uses -c or -d devices.txt # -l is for our executable file.
 
-#note: add the jarm folder to my path in bashrc (or bash profile??) at home.
+# echo -e "\nPATH=$PATH:~/mc404/jarm" >> ~/.profile # append jarm bin directory to the PATH in profile

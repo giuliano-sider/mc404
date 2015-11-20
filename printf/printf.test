@@ -1,13 +1,2 @@
 %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i
 r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, sp, pc
-
-r0             0xa201   41473                                             r1             0x901e   36894                                             │
-│r2             0x904b   36939                                             r3             0x2889   10377                                             │
-│r4             0x0      0                                                 r5             0xf6fff11c       -150998756                                │
-│r6             0x0      0                                                 r7             0x0      0                                                 │
-│r8             0x0      0                                                 r9             0x0      0                                                 │
-│r10            0x1853c  99644                                             r11            0x0      0                                                 │
-│r12            0xf6fff08c       -150998900                                sp             0xf6fff114       0xf6fff114                                │
-│lr             0x8fe1   36833                                             pc             0x8fec   0x8fec <UserPromptLoop+20>                        │
-│cpsr           0x20000030       536870960                                                                                                           │
-│                                                                                                                                    

@@ -27,6 +27,19 @@ regvar_state .req r9
 .equ readlength, 3
 .equ readformatspecifier, 4
 
+@ user flags for printf
+.equ spaceflag, 0 @ bit zero of regvar_flags
+.equ poundflag, 1 @ bit 1 of regvar_flags
+.equ plusflag, 2 @ bit 2 of regvar_flags
+.equ dashflag, 3 @ bit 3 of regvar_flags
+.equ zeroflag, 4 @ bit 4 of regvar_flags
+@ auxiliary format flags
+.equ print0prefixflag, 8
+.equ printXprefixflag, 9
+.equ printspaceprefixflag, 10
+.equ printplusprefixflag, 11
+.equ printminusprefixflag, 12
+
 .equ printf_varstackframesize, 0 @ (in words) if we keep variables on the stack, we'll have to move this
 	
 	ldr r14, =TheUserStack @ we'll keep the user's registers in a friendly table, indexed by regnum.
@@ -72,7 +85,7 @@ BranchToHandlePlus:
 
 	PlusFlag: @ (+, readflags)
 		// optional error/warning check: is flag already set?
-		orr regvar_flags, 4 @ flags.plus <- true
+		orr regvar_flags, (1<<plusflag) @ flags.plus <- true
 		add regvar_i, 1
 		b ReadFormatString
 
@@ -88,7 +101,7 @@ BranchToHandleDash:
 
 	DashFlag: @ (-, readflags)
 		// optional error/warning check: is flag already set?
-		orr regvar_flags, 8 @ flags.dash <- true
+		orr regvar_flags, (1<<dashflag) @ flags.dash <- true
 		add regvar_i, 1
 		b ReadFormatString	
 
@@ -104,7 +117,7 @@ BranchToHandleSpace:
 
 	SpaceFlag: @ (' ', readflags)
 		// optional error/warning check: is flag already set?
-		orr regvar_flags, 1 @ flags.space <- true
+		orr regvar_flags, (1<<spaceflag) @ flags.space <- true
 		add regvar_i, 1
 		b ReadFormatString
 
@@ -120,7 +133,7 @@ BranchToHandlePound:
 
 	PoundFlag: @ ('#', readflags)
 		// optional error/warning check: is flag already set?
-		orr regvar_flags, (1<<2) @ flags.pound <- true
+		orr regvar_flags, (1<<poundflag) @ flags.pound <- true
 		add regvar_i, 1
 		b ReadFormatString
 
@@ -136,7 +149,7 @@ BranchToHandleZero:
 
 	NaughtFlag: @ (0, readflags)
 		// optional error/warning check: is flag already set?
-		orr regvar_flags, 16 @ flags.naught <- true
+		orr regvar_flags, (1<<zeroflag) @ flags.naught <- true
 		add regvar_i, 1
 		b ReadFormatString
 
@@ -147,7 +160,7 @@ BranchToHandleStar:
 	.hword (IncrementI_AndPrintChar-HandleStar)/2
 	.hword (WidthArg-HandleStar)/2
 	.hword (WidthArg-HandleStar)/2
-	.hword (ErrorChar-HandleStar)/2
+	.hword (LengthArg-HandleStar)/2
 	.hword (ErrorChar-HandleStar)/2
 
 	WidthArg: @ (*, readflags/readwidth)
@@ -161,8 +174,29 @@ BranchToHandleStar:
 		ldr regvar_width, [r0] @ r0, returned by OVFNA, is a pointer to the argument containing the width,
 		cmp regvar_width, 0
 		blt NegativeFieldWidthError @ thought you would crash my app with a negative width, fool?
-		add regvar_i, 1
+		add regvar_i, 1 @ consume the * character
+		mov regvar_state, readlength @ done obtaining the width
 		b ReadFormatString
+
+	LengthArg: @ (*, readlength)
+		cmp regvar_length, 8 @ this must come after a 'l' character in the length specifier (i.e. "l*")
+		bne ErrorChar
+		mov r0, regvar_argumentstr @ pointer to the argument string
+		mov r1, regvar_j @ index to the argument string
+		mov r2, 4 @ length (in bytes) of the number to be obtained (an integer that specifies the length)
+		bl ObtainValueFromNextArg @ string -> r0, index -> r1, length -> r2 ... ptr_to_arg -> r0, newindex -> r1
+		cmp r0, 0 @ if ObtainValueFromNextArg returned a null pointer
+		beq ErrorObtainingArgument @ ObtainValueFromNextArg left an error message at sp. unwind printf and leave msg at sp, return -1
+		mov regvar_j, r1
+		ldr regvar_length, [r0] @ r0, returned by OVFNA, is a pointer to the argument containing the width,
+		cmp regvar_length, 0
+		ble NegativeFieldLengthError @ thought you would crash my app with a negative Length, fool?
+		cmp regvar_length, MAXNUMBYTESIZE
+		bhi InvalidByteSizeError @ if bounds are higher (non positive or bigger) than the MAXNUMBYTESIZE, error
+		add regvar_i, 1 @ consume the * character
+		mov regvar_state, readformatspecifier @ done obtaining the length.
+		b ReadFormatString
+
 
 BranchToHandleL:
 	tbh [pc, regvar_state, lsl 1] @ (l)
@@ -175,6 +209,7 @@ BranchToHandleL:
 
 	SetLengthL: @ (l, readflags/readwidth/readlength)
 		add regvar_i, 1
+		mov regvar_state, readlength @ in case we're not there already
 		cmp regvar_length, 4 @ if this is the first L, double the default length of 4 bytes
 		itt eq
 		lsleq regvar_length, 1
@@ -197,6 +232,7 @@ BranchToHandleH:
 
 	SetLengthH:
 		add regvar_i, 1
+		mov regvar_state, readlength @ in case we're not there already
 		cmp regvar_length, 4 @ if this is the first H, halve the default length of 4 bytes
 		itt eq
 		lsreq regvar_length, 1
@@ -285,7 +321,7 @@ regvar_digitlookup .req r3
 		bl StringLength @ string -> r0 ... r0->string, r1 -> string length.
 	CharacterSpecBranchesInHere: @ must have length of 1 loaded in r1, and a null byte terminated string loaded in valueptr===r0.
 		sub regvar_width, r1 @ width - StringLength(string) characters have to be printed to make the minimum field width. if non-positive, then no characters are printed
-		tst regvar_flags, 8 @ if the dash flag is set, we left justify the field (within the field width)
+		tst regvar_flags, (1<<dashflag) @ if the dash flag is set, we left justify the field (within the field width)
 		beq RightJustifyString
 			//mov r0, regvar_valueptr @ print the string first, then the padding => left justification
 			bl PrintString @ string -> r0 ... r0-> string (echo)
@@ -339,7 +375,7 @@ regvar_digitlookup .req r3
 		cmp regvar_state, readformatstr
 		beq IncrementI_AndPrintChar @ if in normal reading state, just print it
 
-		mov regvar_flags, (2+16) @ set the zero and pound flags (show 0x and left pad number with zeroes)
+		mov regvar_flags, (1<<zeroflag + 1<<poundflag) @ set the zero and pound flags (show 0x and left pad number with zeroes)
 		mov regvar_width, 10 @ width of ten (8 hex digits and the 0x)
 		mov regvar_length, 4 @ four byte value to be printed
 
@@ -447,7 +483,7 @@ regvar_digitlookup .req r3
 @ now: do we print a 0, 0x prefix? do we print a sign (or a space in its place?) ? 
 @ do we left or right justify within field width? if right justify, do we left pad with zeroes? 
 @ if not, do we pad with spaces ?
-		tst regvar_flags, (1<<1) @ is the # flag set?
+		tst regvar_flags, (1<<poundflag) @ is the # flag set?
 		beq NowConsiderSignFormatting @ if not, go on to the next step
 		//mov r0, regvar_number
 		//mov r1, regvar_numwordsize
@@ -465,30 +501,31 @@ regvar_digitlookup .req r3
 		beq NowConsiderSignFormatting
 		cmp regvar_radix, 8 @ is it octal? then with # set, non zero value, we will print a 0 prefix.
 		ittt eq
-		andeq regvar_flags, 0x100 @ set the auxiliary 'print 0 prefix' flag
+		orreq regvar_flags, (1<<print0prefixflag) @ set the auxiliary 'print 0 prefix' flag
 		addeq regvar_totalstringlength, 1 @ take into account one more character to be printed 
 		beq NowConsiderSignFormatting
-		and regvar_flags, 0x300 @ if we made it here, we are hex with # set, non zero value, so we set 'print a '0' and 'X' prefix' flag
+		orr regvar_flags, (1<<print0prefixflag + 1<<printXprefixflag)
+		@ if we made it here, we are hex with # set, non zero value, so we set 'print a '0' and 'X' prefix' flag
 		add regvar_totalstringlength, 2 @ take into account two more characters to be printed 
 
 	NowConsiderSignFormatting:
 		tst regvar_flags, 0x80000000 @ test sign bit of the number 
 		ittt ne @ if sign bit is set, then we will prefix number with -
-		orrne regvar_flags, (1<<12) @ auxiliary 'print -' flag
+		orrne regvar_flags, (1<<printminusprefixflag) @ auxiliary 'print -' flag
 		addne regvar_totalstringlength, 1 @ take into account one more character to be printed
 		bne NowConsiderThePadding
-		tst regvar_flags, (1<<2) @ test + flag
+		tst regvar_flags, (1<<plusflag) @ test + flag
 		ittt ne @ if + flag is set, prefix number with a +
-		orrne regvar_flags, (1<<11) @ auxiliary 'print + flag
+		orrne regvar_flags, (1<<printplusprefixflag) @ auxiliary 'print + flag
 		addne regvar_totalstringlength, 1 @ take into account one more character to be printed
 		bne NowConsiderThePadding
-		tst regvar_flags, (1<<0) @ test ' ' flag
-		itt ne @ if ' ' flag is set, prefix number with a +
-		orrne regvar_flags, (1<<10) @ auxiliary "print ' ' "flag
+		tst regvar_flags, (1<<spaceflag) @ test ' ' flag
+		itt ne @ if ' ' flag is set, prefix number with a ' '
+		orrne regvar_flags, (1<<printspaceprefixflag) @ auxiliary "print ' ' "flag
 		addne regvar_totalstringlength, 1 @ take into account one more character to be printed
 
 	NowConsiderThePadding:
-		tst regvar_flags, (1<<3) @ test the dash flag 
+		tst regvar_flags, (1<<dashflag) @ test the dash flag 
 		beq RightJustifyNumber @ if the dash flag is clear, we right justify (default)
 		
 		PrintFormattedNumberPrefixes regvar_flags, regvar_digitlookup
@@ -505,7 +542,7 @@ regvar_digitlookup .req r3
 		b FinishFormattingNumber
 	RightJustifyNumber:
 
-		tst regvar_flags, (1<<4) @ test the zero flag 
+		tst regvar_flags, (1<<zeroflag) @ test the zero flag 
 		bne PadNumberFieldWithZeroes @ zero flag is set
 
 		push { r0, r1 }
@@ -601,6 +638,10 @@ BranchToHandlePercent:
 		ldr r0, =NegativeFieldWidthErrorMsg
 		bl UnwindPrintfOnError @ unwind printf's stack, put the error message at sp, return -1
 
+	NegativeFieldLengthError: @ ObtainValueFromNextArg left an error message at sp. unwind printf and leave msg at sp, return -1
+		ldr r0, =NegativeFieldLengthErrorMsg
+		bl UnwindPrintfOnError @ unwind printf's stack, put the error message at sp, return -1
+
 	ErrorObtainingArgument: @ ObtainValueFromNextArg left an error message at sp. unwind printf and leave msg at r1, return -1
 		mov r0, r1
 		bl UnwindPrintfOnError @ unwind printf's stack, put the error message at sp, return -1
@@ -646,6 +687,9 @@ mov pc, lr
 		.asciz "Error: width specifier cannot be negative\n"
 	.align
 
+	NegativeFieldLengthErrorMsg:
+		.asciz "Error: width specifier cannot be non positive\n"
+	.align
 /*
 	IllegalFormatSpecifierMsg: 
 		.asciz "Error: invalid format specifier\n"

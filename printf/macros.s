@@ -5,27 +5,27 @@
 .macro PrintFormattedNumberPrefixes Rregvar_flags Rregvar_digitlookup
 @ prints 0 or 0x prefixes if corresponding flags are set. prints ' ', +, or - if corresponding flags are set.
 push { r0 }
-	tst \Rregvar_flags, (1<<10) @ do we print a ' ' prefix?
+	tst \Rregvar_flags, (1<<printspaceprefixflag) @ do we print a ' ' prefix?
 	itt ne @ print a ' ' prefix flag is set 
 	movne r0, ' '
 	blne PrintChar
 
-	tst \Rregvar_flags, (1<<11) @ do we print a + prefix?
+	tst \Rregvar_flags, (1<<printplusprefixflag) @ do we print a + prefix?
 	itt ne @ print a + prefix flag is set 
 	movne r0, '+'
 	blne PrintChar
 
-	tst \Rregvar_flags, (1<<12) @ do we print a - prefix?
+	tst \Rregvar_flags, (1<<printminusprefixflag) @ do we print a - prefix?
 	itt ne @ print a - prefix flag is set 
 	movne r0, '-'
 	blne PrintChar
 
-	tst \Rregvar_flags, (1<<8) @ do we print a 0 prefix?
+	tst \Rregvar_flags, (1<<print0prefixflag) @ do we print a 0 prefix?
 	itt ne @ print a 0 prefix flag is set 
 	movne r0, '0'
 	blne PrintChar
 
-	tst \Rregvar_flags, (1<<9) @ do we print a x|X prefix?
+	tst \Rregvar_flags, (1<<printXprefixflag) @ do we print a x|X prefix?
 	itt ne @ print a x|X prefix flag is set 
 	ldrbne r0, [\Rregvar_digitlookup, 16] @ last position in hex digit lookup table is x or X according to convenience
 	blne PrintChar
@@ -406,7 +406,7 @@ OBFNABranchOnCharacter:
 	ArgBranchOnStateForL:
 		.hword (TriedToUseLinkRegister-ArgBranchOnStateForL)/2
 		.hword (TriedToUseLinkRegister-ArgBranchOnStateForL)/2
-		.hword (ErrorCharArg-ArgBranchOnStateForL)/2
+		.hword (SkipOffsetToLSL-ArgBranchOnStateForL)/2
 		.hword (SetLeftShift-ArgBranchOnStateForL)/2
 		.hword (ErrorCharArg-ArgBranchOnStateForL)/2
 		.hword (ErrorCharArg-ArgBranchOnStateForL)/2
@@ -424,7 +424,27 @@ OBFNABranchOnCharacter:
 		mov regvar_argstate, matcharg @ match another argument 
 		b ReadArgumentString @ do loop
 
-	ArgHandleS: @ could be stack pointer. if in matchleftbracket or matchargs, ok; otherwise, error.
+	SkipOffsetToLSL: @ must match 'lsl' (no offset will be specified. so copy first arg to second arg and place 0 in first arg)
+		add regvar_argj, 1 @ matched the 'l'
+		ldrb regvar_argchar, [regvar_argstr, regvar_argj] @ read next character 
+		cmp regvar_argchar, 's'
+		bne ErrorCharArg
+		add regvar_argj, 1 @ matched the 's'
+		ldrb regvar_argchar, [regvar_argstr, regvar_argj] @ read next character 
+		cmp regvar_argchar, 'l'
+		bne ErrorCharArg
+		add regvar_argj, 1 @ matched the 'l'. done matching.
+		ldr regvar_argstate, [regvar_args] @ temp = args[0]
+		str regvar_argstate, [regvar_args, 4] @ args[1] = temp
+		mov regvar_argstate, 0 @ temp = 0
+		str regvar_argstate, [regvar_args] @ args[0] = temp 
+			@ necessary to make sure the calculation later works out without the user having specified an offset
+		mov regvar_argstate, matcharg @ now match the argument
+		mov regvar_arg, 2 @ read the shift argument now (arg 2), having bypassed the offset argument (arg 1).
+		b ReadArgumentString @ do loop
+
+
+	ArgHandleS: @ could be stack pointer. if in matchleftbracket or matcharg, ok; otherwise, error.
 		cmp regvar_argstate, matchsign
 		bge ErrorCharArg @ must be matching an argument (register or constant). note that left bracket is optional.
 		add regvar_argj, 1 @ matched the s 
@@ -442,7 +462,7 @@ OBFNABranchOnCharacter:
 			@ if arg==1, goes to matchsign. else if arg==2, goes to matchshift. else if arg==3, goes to matchrightbracket.
 		b ReadArgumentString @ do loop
 
-	ArgHandleP: @ could be program counter. if in matchleftbracket or matchargs, ok; otherwise, error.
+	ArgHandleP: @ could be program counter. if in matchleftbracket or matcharg, ok; otherwise, error.
 		cmp regvar_argstate, matchsign
 		bge ErrorCharArg @ must be matching an argument (register or constant). note that left bracket is optional.
 		add regvar_argj, 1 @ matched the p
@@ -527,7 +547,7 @@ OBFNABranchOnCharacter:
 	FinishObtainValueFromNextArg:
 		add regvar_argj, 1 @ consume the \0 or ,
 		ldmia regvar_args, { regvar_argscratch1, regvar_argscratch2, regvar_argscratch3 } @ load the values obtained
-		lsl regvar_argscratch2, regvar_argscratch2, regvar_argscratch1 @ execute the shift
+		lsl regvar_argscratch2, regvar_argscratch2, regvar_argscratch3 @ execute the shift
 		tst regvar_argflags, (1<<0) @ test the +/- offset flag 
 		ite eq @ if flag is clear, positive offset; otherwise, negative offset
 		addeq regvar_argscratch1, regvar_argscratch1, regvar_argscratch2
@@ -556,9 +576,9 @@ pop {  r2-r8 , pc }
 
 
 ErrorCharArg: @ invalid character during argument specifier read
-	ldr r0, =OffendingChar
+	ldr r0, =ArgStrOffendingChar
 	strb regvar_argchar, [r0] @ this character will be inserted in a sui generis error message
-	ldr r0, =ErrorCharMsg
+	ldr r0, =ErrorCharArgMsg
 	bl UnwindObtainValueOnError @@@@ unwind ObtainValue's stack, load error message at r1, return 0 (error)
 
 UnwindObtainValueOnError: @ ObtainValueFromNextArg must leave an error message (passed in at r0) at r1
