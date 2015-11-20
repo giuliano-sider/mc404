@@ -35,18 +35,12 @@ _start: @ this is Prof. Anido's initialization magic
 	msr	cpsr,r0		@ processador agora no modo usuário
 	mov	sp, #0x10000	@ pilha do usuário no final da memória 
 
-DisplayResetCode: @ display 23:59:48 and go to "clock off polling loop"
-	ldr	r2, =DISPLAY	@ r2 tem porta display AND THE REST OF THE PERIPHERALS AT KNOWN OFFSETS
-	ldr r3, =ResetCode @ 7 segment code for 23:59:48
-@ now reset the clock to 23:59:48. 
-	ldm r3, { r4-r11 }
-	stm r2, { r4-r11 }
-
+	bl DisplayResetCode @ display 23:59:48 and then go to "clock off polling loop"
 loop_off: @ polling loop to check if we should make a transition from timer off to on.
 	ldr r1, =RESET_BTN
 	ldr r0, [r1] @ check if reset button has been pressed
 	cmp r0, #BIT_READY @ bit_ready===1
-	beq DisplayResetCode
+	bleq DisplayResetCode @ affects r2-r11
 	ldr	r1, =BTN_ON_OFF @ WE CANNOT TURN THIS THING OFF PROGRAMMATICALLY. ONLY PHYSICALLY. THANK JARM
 	ldr	r0, [r1]         @ verifica botao liga
 	cmp	r0, #BIT_READY   @ foi pressionado?
@@ -65,7 +59,7 @@ loop_on: @ polling loop to check if we should make a transition from on to off.
 	ldr r1, =RESET_BTN
 	ldr r0, [r1] @ check if reset button has been pressed
 	cmp r0, #BIT_READY @ bit_ready===1
-	beq PauseNReset
+	bleq DisplayResetCode @ affects r2-r11
 	ldr	r1,=flag        @ continua ligado, verifica flag
 	ldr	r0, [r1]
 	cmp	r0, #0           @ timer ligou a flag?
@@ -76,17 +70,6 @@ loop_on: @ polling loop to check if we should make a transition from on to off.
 @ and worse, a BUG: strD and etc. are ASSEMBLED TO OTHER INSTRUCTIONS WITHOUT ERROR NOR WARNING !!!
 	bl Sum1To7SegmentClock @ r2-r11 affected. couldn't care less
 	b loop_on @ keep 'em pollin'
-
-PauseNReset: @ reset push button was pressed. go to timer off state, resetting the clock in the process.
-	mov	r0, #0           @ desliga timer
-	ldr	r2, =TIMER
-	str  	r0, [r2]		@ seta timer @ timer.interval = 0 @ timer disabled
-	ldr	r2, =LED_ON_OFF
-	str  	r0, [r2]		@ desliga led @ led.enabled = false
-	ldr r2, =BTN_ON_OFF
-	str r0, [r2] 
-@ clear the timer on state for the button as well DOESNT WORK. NOTHING WE CAN DO ABOUT IT. THIS DOES NOT PAUSE ANYTHING
-	b       DisplayResetCode
 
 desliga: @ toggle button was pressed. now handle the transition from timer on to off.
 	mov	r0, #0           @ desliga timer
@@ -121,6 +104,7 @@ movs	pc,lr		@ e retorna
 .set dot, 0x80 @ separator
 
 Sum1To7SegmentClock:
+	@ input: r4-r11 must have the codes for the display in BIG ENDIAN order (r4: lefthour, r11: rightminute)
 	@ output: r2 has DISPLAY. r3 has Sum1Map. r4-r11 have the new codes for the display in /*little*/ BIG endian order.
 	ldr r2, =DISPLAY
 	ldr r3, =Sum1Map
@@ -151,6 +135,15 @@ Sum1To7SegmentClock:
 		moveq r5, #zero @ lefthour = righthour = 0
 		moveq r4, #zero @ no IT block needed in this family
 NowUpdateTheClock: @ save changes made to the clock's 7 segment display codes
+	stm r2, { r4-r11 }
+mov pc, lr
+
+DisplayResetCode: @ side effect: display 23:59:48.
+					@ output: r4-r11 have the new codes for the display in /*little*/ BIG endian order.
+	ldr	r2, =DISPLAY	@ r2 tem porta display AND THE REST OF THE PERIPHERALS AT KNOWN OFFSETS
+	ldr r3, =ResetCode @ 7 segment code for 23:59:48
+@ now reset the clock to 23:59:48. 
+	ldm r3, { r4-r11 }
 	stm r2, { r4-r11 }
 mov pc, lr
 
@@ -208,7 +201,7 @@ Sum1Map: @ no mercy, no waffling around, just hit 'em with a table
 	@ that's all folks
 */
 Sum1Map: 
-@ made in excel. adds 1, modulo 10, in 7seg codes. 0xff marks unused entries.
+@ made in excel. for a given 7 segment code, adds 1, modulo 10. 0xff marks unused entries.
 .byte 0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff
 .byte 0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff
 .byte 0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0x6d,0xff,0xff,0x5b,0xff,0xff,0xff,0xff,0xff
