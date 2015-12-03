@@ -21,7 +21,7 @@ lengthspec := ll | l | h | hh | l<decimal number> | l*
 specifier := c|s|d|i|x|X|n|u|o|%
 arg str := argument specifier [, argument specifier ... ] \0 
 // whitespace is ignored
-argument := [ "[" ] <reg>|<const> [+- <reg>|<const> [lsl <reg>|<const>]] [ "]" ]
+argument := [ "[" ] <reg>|<const> [+|- <reg>|<const> [lsl <reg>|<const>]] [ "]" ]
 reg := r0|r1| ... r15 | sp | pc @ but not lr | r14
 const := [0x|0]<digits>
 

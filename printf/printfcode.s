@@ -631,8 +631,25 @@ BranchToHandlePercent:
 	ErrorChar: @ invalid character during format specifier read
 		ldr r1, =OffendingChar
 		strb regvar_char, [r1] @ this character will be inserted in a sui generis error message
+		ldr r0, =Number @ store the index here (ObtainDigitsFromNumber requires that its argument reside in memory)
+		str regvar_i, [r0]
+		mov r1, 1
+		mov r2, 10 @ print index in decimal form
+		ldr r3, =DigitsLookup
+		bl ObtainDigitsFromNumber
+@ takes pointer to number -> r0, word size of number -> r1, radix -> r2, digitlookuptable -> r3.
+@ returns the stringified number in r0 (in reverse order) and the size of the string in r1
+		ldr r2, =OffendingCharPosition
+		add r0, r0, r1 @ store the end of the string here for printing.
+	PrintTheErrorChar:
+		ldrb r3, [r0, -1]! @ load the most significant digit to be printed
+		strb r3, [r2], 1   @ store it in the error message.
+		subs r1, 1
+		bne PrintTheErrorChar
+	
 		ldr r0, =ErrorCharMsg
 		bl UnwindPrintfOnError @ unwind printf's stack, put the error message at sp, return -1
+
 
 	NegativeFieldWidthError: @ ObtainValueFromNextArg left an error message at sp. unwind printf and leave msg at sp, return -1
 		ldr r0, =NegativeFieldWidthErrorMsg

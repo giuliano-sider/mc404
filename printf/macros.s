@@ -578,12 +578,30 @@ pop {  r2-r8 , pc }
 ErrorCharArg: @ invalid character during argument specifier read
 	ldr r0, =ArgStrOffendingChar
 	strb regvar_argchar, [r0] @ this character will be inserted in a sui generis error message
+
+	ldr r0, =Number @ store the index here (ObtainDigitsFromNumber requires that its argument reside in memory)
+	str regvar_argj, [r0]
+	mov r1, 1
+	mov r2, 10 @ print index in decimal form
+	ldr r3, =DigitsLookup
+	bl ObtainDigitsFromNumber
+@ takes pointer to number -> r0, word size of number -> r1, radix -> r2, digitlookuptable -> r3.
+@ returns the stringified number in r0 (in reverse order) and the size of the string in r1
+	ldr r2, =ArgStrOffendingCharPosition
+	add r0, r0, r1 @ store the end of the string here for printing.
+PrintTheArgErrorChar:
+	ldrb r3, [r0, -1]! @ load the most significant digit to be printed
+	strb r3, [r2], 1   @ store it in the error message.
+	subs r1, 1
+	bne PrintTheArgErrorChar
+
 	ldr r0, =ErrorCharArgMsg
-	bl UnwindObtainValueOnError @@@@ unwind ObtainValue's stack, load error message at r1, return 0 (error)
+	bl UnwindObtainValueOnError @ unwind ObtainValue's stack, load error message at r1, return 0 (error)
+
 
 UnwindObtainValueOnError: @ ObtainValueFromNextArg must leave an error message (passed in at r0) at r1
 	pop { r2-r8, lr }
-	mov r1, r0 @ error message here
+	mov r1, r0 @ error message in r1.
 	mov r0, 0 @ returns null pointer on failure
 mov pc, lr
 
@@ -621,13 +639,15 @@ InvalidRegisterSpecifiedMsg:
 
 PrintSomeCharNTimes: @ note: PrintChar shields from clobber. r1 is (possibly) modified
 	@ character to print -> r0, how many times -> r1. if non positive, no characters printed.
-cmp r1, 0
-it le @ while number of characters to print is positive, print them
-movle pc, lr 
+push { lr } // do we have to worry about libc expecting an 8 byte aligned stack?
+DoPrintSomeCharNTimes:
+	cmp r1, 0
+	ble FinishedPrintSomeCharNTimes
 	bl PrintChar @ PrintChar(r0 === char)
 	sub r1, 1
-	b PrintSomeCharNTimes @ equivalent to tail recursive call PrintSomeCharNTimes(char, ntimes-1)
-
+	b DoPrintSomeCharNTimes @ equivalent to tail recursive call PrintSomeCharNTimes(char, ntimes-1)
+FinishedPrintSomeCharNTimes:
+pop { pc }
 
 PrintBuffer: @ flushes the entire buffer to outputfunc. returns printedchars -> r0
 push { r1-r8, r12, lr }

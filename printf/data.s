@@ -216,14 +216,20 @@ ErrorCharArgMsg:
 	.ascii "Error: detected an invalid "
 ArgStrOffendingChar: @ place here the offending spurious character to be reported in an error message
 	.byte 0
-	.asciz " character at position in an argument specifier in the argument string\n"
+	.ascii " character at position\n"
+ArgStrOffendingCharPosition: @ place where we store the index.
+	.ascii "        " @ 8 blanks. replace this with number indicating offset of invalid character
+	.asciz " in an argument specifier in the argument string\n"
 .align
 
 ErrorCharMsg:
-		.ascii "Error: detected an invalid "
+	.ascii "Error: detected an invalid "
 OffendingChar: @ place here the offending spurious character to be reported in an error message
 	.byte 0
-	.asciz " character in a format specifier in the format string\n"
+	.ascii " character at position\n"
+OffendingCharPosition: @ place where we store the index.
+	.ascii "        " @ 8 blanks. replace this with number indicating offset of invalid character
+	.asciz " in a format specifier in the format string\n"
 .align
 
 DigitsLookup:
