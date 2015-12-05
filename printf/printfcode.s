@@ -1,12 +1,6 @@
+
 printf_baremetal: @ r0: outputfunc, r1: formatstr, r2: argumentstr
 
-.equ BUFFERSIZE, 256
-	@ actual size of buffer that holds chars before they go out to outputfunc
-.equ MAXNUMBYTESIZE, BUFFERSIZE @ we can print-format numbers of up to BUFFERSIZE==1024 bytes.
-	@ maximum number of bytes a number (in memory) can have and still be print-formatted by
-	@ our printf (given in the "lengthspec" field of the format specifier)
-.equ OUTPUTSTRINGSIZE, 4*MAXNUMBYTESIZE @ (more than) big enough to hold ceil(MAXNUMBYTESIZE*8/3) octal digits
-	@ this buffer holds the formatted print number's ascii codes before it is printed
 
 push { r0-r12, lr } @ we keep track of sp. lr is pc. original lr is not available, clobbered during branch and link.
 
@@ -295,11 +289,23 @@ regvar_digitlookup .req r3
 		beq ErrorObtainingArgument 
 	@ if ObtainValueFromNextArg returns null, it leaves an error message at sp. unwind printf and leave msg at sp, return -1
 		mov regvar_j, r1
-		mov r1, 0
-		strb r1, [r0, 1] @ store a null byte after our character
-			@ keep the character (and a succeeding null byte) in r0 to be printed as a string (handle field formatting, etc.)
-		mov r1, 1 @ string length of 1 goes here. then we can branch to the appropriate label in the string spec formatter.
-		b CharacterSpecBranchesInHere @ take care of the rest print-formatting this character as a string of length 1.
+		sub regvar_width, 1 @ this many extra ' ' will have to be printed to make the minimum field width.
+		ldrb r0, [r0] @ ObtainValueFromNextArg always returns a pointer to the desired value.
+		tst regvar_flags, (1<<dashflag) @ if the dash flag is set, we left justify the field, within the min field width.
+		beq RightJustifyCharPrintout 
+			bl PrintChar @ first print the character (left justify), then the spaces.
+			mov r0, ' ' @ padding.
+			mov r1, regvar_width @ amount of padding as calculated above.
+			bl PrintSomeCharNTimes
+			b ReadFormatString
+		RightJustifyCharPrintout: @ this is the default (no dash flag)
+			push { r0 }
+				mov r0, ' '
+				mov r1, regvar_width
+				bl PrintSomeCharNTimes @ first print the padding, then the character (right justify)
+			pop { r0 }
+			bl PrintChar
+			b ReadFormatString
 		
 	HandleS: @ (s)
 
@@ -317,9 +323,9 @@ regvar_digitlookup .req r3
 		cmp r0, 0 @ if ObtainValueFromNextArg returned a null pointer
 		beq ErrorObtainingArgument @ ObtainValueFromNextArg left an error message at sp. unwind printf and leave msg at sp, return -1
 		mov regvar_j, r1
-		//mov regvar_valueptr, r0 @ for safekeeping. note: we have anull byte terminated string here.
+		ldr r0, [r0] @ the pointer to the string is stored here (value obtained from arg string is a pointer to a string)
 		bl StringLength @ string -> r0 ... r0->string, r1 -> string length.
-	CharacterSpecBranchesInHere: @ must have length of 1 loaded in r1, and a null byte terminated string loaded in valueptr===r0.
+	//CharacterSpecBranchesInHere: @ must have length of 1 loaded in r1, and a null byte terminated string loaded in valueptr===r0.
 		sub regvar_width, r1 @ width - StringLength(string) characters have to be printed to make the minimum field width. if non-positive, then no characters are printed
 		tst regvar_flags, (1<<dashflag) @ if the dash flag is set, we left justify the field (within the field width)
 		beq RightJustifyString
@@ -415,6 +421,61 @@ regvar_digitlookup .req r3
 
 
 
+BranchToHandleNullByte:
+	tbb [pc, regvar_state] @ (\0)
+	HandleNullByte:
+	.byte (FinishPrintf-HandleNullByte)/2
+	.byte (PrematurelyFinishedFormatString-HandleNullByte)/2
+	.byte (PrematurelyFinishedFormatString-HandleNullByte)/2
+	.byte (PrematurelyFinishedFormatString-HandleNullByte)/2
+	.byte (PrematurelyFinishedFormatString-HandleNullByte)/2
+	.byte 0
+
+	FinishPrintf: @ (\0, readformatstr)
+		bl PrintBuffer @ prints out whatever is in our print buffer
+		@ mov regvar_returnval === r0, regvar_printedchars === r0
+		pop { r0-r12, lr }
+		ldr r0, =PrintCharStaticVars
+		ldr r0, [r0, 8] @ printedchars stored here.
+	mov pc, lr
+
+	PrematurelyFinishedFormatString: @ (\0, not readformatstr)
+		ldr r0, =PrematurelyFinishedFormatStringMsg
+		bl UnwindPrintfOnError @@@@ unwind printf's stack, load error message at sp, return -1
+
+BranchToHandlePercent:
+	tbb [pc, regvar_state] @ (%)
+	HandlePercent:
+	.byte (BeginReadingFormatSpecifier-HandlePercent)/2
+	.byte (TreatPercentSpecifier-HandlePercent)/2
+	.byte (TreatPercentSpecifier-HandlePercent)/2
+	.byte (TreatPercentSpecifier-HandlePercent)/2
+	.byte (TreatPercentSpecifier-HandlePercent)/2
+	.byte 0
+
+	BeginReadingFormatSpecifier: @ (%, readformatstr)
+		mov regvar_flags, 0 @ default: all flags clear (' ', '#', '+', '-', '0'), including auxiliary flags.
+		mov regvar_width, 0 @ default: no minimum field width
+		mov regvar_length, 4 @ default: 4 byte numbers (when dealing with numbers, this is relevant)
+		add regvar_i, 1 @ consume the '%'
+		mov regvar_state, readflags @ begin looking at (optional) flags
+		b ReadFormatString 
+		@ break
+	TreatPercentSpecifier: @ (%, not readformatstr) 
+		// optional error/warning check for spurious format modifiers (have no effect)
+		mov regvar_state, readformatstr @ go back to reading and printing characters.
+		@ Fall through!
+	IncrementI_AndPrintChar: @ every time a character (not %) is read in readformatstr 
+		add regvar_i, 1 
+	// 	@ fall through
+	// PrintCharacter:
+		bl PrintChar @ print the character loaded in r0 (formerly formatstr[i])
+		b ReadFormatString 
+		@ break
+
+
+
+
 	HandleD: @ (d, i)
 		cmp regvar_state, readformatstr
 		beq IncrementI_AndPrintChar @ if in normal reading state, just print it
@@ -466,9 +527,8 @@ regvar_digitlookup .req r3
 		//ldr r3, regvar_digitlookup @ contains digit indexed table of ascii characters corresponding to digits.
 		bl ObtainDigitsFromNumber @ pointer to number -> r0, word size of number -> r1, radix -> r2, digitlookuptable -> r3... 
 									@ returns r0 -> ptr to string with digits (in reverse order), r1 -> size of string
-		//mov regvar_stringlength, r1 @ safekeeping
-		//mov regvar_string, r0 @ safekeeping
-	push { r11, r12 } @ life is too short to program in assembly. at least have a machine program the details.
+		
+	push { r11, r12 } @ life is too short to program in assembly. at least have a machine program the register allocation
 	regvar_stringlength .req r1
 	regvar_totalstringlength .req r12
 		mov r11, '0'
@@ -485,17 +545,6 @@ regvar_digitlookup .req r3
 @ if not, do we pad with spaces ?
 		tst regvar_flags, (1<<poundflag) @ is the # flag set?
 		beq NowConsiderSignFormatting @ if not, go on to the next step
-		//mov r0, regvar_number
-		//mov r1, regvar_numwordsize
-		//push { r2 }
-		//bl IsNumberZero @ number -> r0, number word size -> r1 ... r0, r1: echo. r2 -> zero if number is zero, nonzero otherwise
-		//cmp r2, 0 
-	// assembly is not a good way to develop software. why should i be worried about register allocation to this extent
-		//itt eq
-		//popeq { r2 }
-		//beq NowConsiderSignFormatting @ if number is zero go on to the next step
-		//pop { r2 }
-		
 
 		cmp regvar_radix, 10 @ is it decimal ? then go on to the next step
 		beq NowConsiderSignFormatting
@@ -577,57 +626,7 @@ regvar_digitlookup .req r3
 		add regvar_i, 1 @ consumes the format specifier character
 		b ReadFormatString
 
-BranchToHandleNullByte:
-	tbh [pc, regvar_state, lsl 1] @ (\0)
-	HandleNullByte:
-	.hword (FinishPrintf-HandleNullByte)/2
-	.hword (PrematurelyFinishedFormatString-HandleNullByte)/2
-	.hword (PrematurelyFinishedFormatString-HandleNullByte)/2
-	.hword (PrematurelyFinishedFormatString-HandleNullByte)/2
-	.hword (PrematurelyFinishedFormatString-HandleNullByte)/2
 
-	FinishPrintf: @ (\0, readformatstr)
-		bl PrintBuffer @ prints out whatever is in our print buffer
-		@ mov regvar_returnval === r0, regvar_printedchars === r0
-		pop { r0-r12, lr }
-		ldr r0, =PrintCharStaticVars
-		ldr r0, [r0, 8] @ printedchars stored here.
-	mov pc, lr
-
-	PrematurelyFinishedFormatString: @ (\0, not readformatstr)
-		ldr r0, =PrematurelyFinishedFormatStringMsg
-		bl UnwindPrintfOnError @@@@ unwind printf's stack, load error message at sp, return -1
-
-BranchToHandlePercent:
-	tbh [pc, regvar_state, lsl 1] @ (%)
-	HandlePercent:
-	.hword (BeginReadingFormatSpecifier-HandlePercent)/2
-	.hword (TreatPercentSpecifier-HandlePercent)/2
-	.hword (TreatPercentSpecifier-HandlePercent)/2
-	.hword (TreatPercentSpecifier-HandlePercent)/2
-	.hword (TreatPercentSpecifier-HandlePercent)/2
-
-	BeginReadingFormatSpecifier: @ (%, readformatstr)
-		mov regvar_flags, 0 @ default: all flags clear (' ', '#', '+', '-', '0'), including auxiliary flags.
-		mov regvar_width, 0 @ default: no minimum field width
-		mov regvar_length, 4 @ default: 4 byte numbers (when dealing with numbers, this is relevant)
-		add regvar_i, 1 @ consume the '%'
-		mov regvar_state, readflags @ begin looking at (optional) flags
-		b ReadFormatString 
-		@ break
-	TreatPercentSpecifier: @ (%, not readformatstr) 
-		// optional error/warning check for spurious format modifiers (have no effect)
-		mov regvar_state, readformatstr @ go back to reading and printing characters.
-		@ Fall through!
-	IncrementI_AndPrintChar: @ every time a character (not %) is read in readformatstr 
-		add regvar_i, 1 
-	// 	@ fall through
-	// PrintCharacter:
-		bl PrintChar @ print the character loaded in r0 (formerly formatstr[i])
-		b ReadFormatString 
-		@ break
-
-	
 	ErrorChar: @ invalid character during format specifier read
 		ldr r1, =OffendingChar
 		strb regvar_char, [r1] @ this character will be inserted in a sui generis error message
@@ -649,6 +648,9 @@ BranchToHandlePercent:
 	
 		ldr r0, =ErrorCharMsg
 		bl UnwindPrintfOnError @ unwind printf's stack, put the error message at sp, return -1
+
+	
+
 
 
 	NegativeFieldWidthError: @ ObtainValueFromNextArg left an error message at sp. unwind printf and leave msg at sp, return -1

@@ -21,11 +21,10 @@ INPUT: r0 (pointer to buffer), r1 (number of words in buffer).
 SIDE EFFECTS: prints a big number stored in a buffer (in little endian form). Clobbers: r0-r3, r12.
 *******************************/
 .syntax unified
-.data
-.align
-input_integer: .word 0
+
 
 .text
+
 .align
 PromptFormat: .asciz "%i"
 OutFormat: .asciz "The factorial of %i is %i words long, stored in a buffer %i bytes in size.\n"
@@ -183,11 +182,14 @@ PrintFormat: .asciz "%08X\n"
 DonePrinting: .asciz "\n\n"
 .align
 
-@ all the printf paraphernalia follows below:
 
-.include "macros.s"
+
+.include "macros.s" @ MOVING THIS AROUND PROBABLY CREATED THE RANGE PROBLEMS
 .include "printfcode.s"
 .include "data.s"
+
+.align
+input_integer: .word 0
 
 /*
 FactorialNumBuffer: @ we keep the number here

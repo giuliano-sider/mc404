@@ -1,7 +1,6 @@
 
 @ collection of macros/aux functions for the printf project 
 
-
 .macro PrintFormattedNumberPrefixes Rregvar_flags Rregvar_digitlookup
 @ prints 0 or 0x prefixes if corresponding flags are set. prints ' ', +, or - if corresponding flags are set.
 push { r0 }
@@ -68,8 +67,13 @@ push { r1, lr }
 	addeq sp, 8 @ unwind this function's stack (assembly => not a healthy way to program)
 	beq TriedToUseLinkRegister @ user's link register inaccessible
 	ldr r1, =TheUserStack
+
+	//ldr r1, [pc, TheUserStackInLoadRegisterValue - TheUserStackInLoadRegisterValueLOADPOSITION]
+	//TheUserStackInLoadRegisterValueLOADPOSITION: @ GNU asm all of a sudden has problems with range. do not write programs for GNU asm
+	
 	ldr r0, [r1, r0, lsl 2] @ fetch the register from where printf saved it in TheUserStack static struct
 pop { r1, pc }
+//TheUserStackInLoadRegisterValue: .word TheUserStack
 
 StringLength: @ string -> r0 ... r0->string, r1 -> string length.
 push { r2, lr }
@@ -162,6 +166,9 @@ regvar_outputstringlength .req r5
 regvar_ODFN_radix .req r6
 regvar_ODFN_aux .req r7 @ no doc on how these .req work, so better safe than sorry
 	ldr regvar_outputstring, =OutputString @ this is the buffer where the number is kept as a string of ascii characters
+	//ldr regvar_outputstring, [pc, OutputStringInObtainDigits - OutputStringInObtainDigitsLOADPOSITION]
+	//OutputStringInObtainDigitsLOADPOSITION: @ GNU asm all of a sudden has problems with range. gnu asm is meant for robot compilers.
+
 	mov regvar_outputstringlength, 0 @ outputstringlength = 0
 	mov regvar_ODFN_radix, r2
 	@mov regvar_lookuptable, r3 
@@ -185,6 +192,9 @@ ExtractedAllTheDigits:
 	mov r1, regvar_outputstringlength @ we return the length of the string in r1,
 	mov r0, regvar_outputstring @ and the string itself in r0.
 pop { r4-r7 , pc }
+//OutputStringInObtainDigits: .word OutputString
+
+
 
 UDivVectorByInt16:
 @ descr: divides the ((unsigned) potentially large but word aligned and little endian) number by a 16bit divisor.
@@ -242,6 +252,10 @@ CopyNumberToBuffer: @ (user provided/ObtainValueFromNextArg provided) pointer to
 push {  r2-r4 , lr } @ strict no clobber policy within printf. 
 	@ note: number must be positive (or potentially unsigned): no sign extension done for non word-aligned numbers that are read.
 	ldr r4, =Number @ this is our internal buffer where we copy to.
+
+	//ldr r4, [pc, NumberInCopyNumberToBuffer - NumberInCopyNumberToBufferLOADPOSITION]
+	//NumberInCopyNumberToBufferLOADPOSITION: @ GNU asm all of a sudden has problems with range. do not write programs for GNU asm
+
 	lsr r3, r1, 2 @ floor(numbytes/4)
 	mov r2, 0
 	str r2, [r4, r3, lsl 2] @ make sure there is a zero at
@@ -258,6 +272,7 @@ CopiedToBuffer:
 	mov r0, r4 @ return pointer to number in internal buffer
 	mov r1, r3 @ return size of number in words ( ceil(numbytes/4) )
 pop { r2-r4 , pc }
+//NumberInCopyNumberToBuffer: .word Number
 
 
 
@@ -266,6 +281,10 @@ Copy2sComplement: @ (user provided/ObtainValueFromNextArg provided) pointer to n
 push {  r2-r4 , lr } @ strict no clobber policy within printf. 
 @ note: number must be negative: no sign extension done for non word-aligned numbers that are read.
 	ldr r4, =Number @ this is our internal buffer where we copy to.
+
+	//ldr r4, [pc, NumberInCopy2sComplement - NumberInCopy2sComplementLOADPOSITION]
+	//NumberInCopy2sComplementLOADPOSITION: @ GNU asm all of a sudden has problems with range. do i look like a human compiler???
+
 	lsr r3, r1, 2 @ floor(numbytes/4)
 	mov r2, 0
 	str r2, [r4, r3, lsl 2] @ make sure there is a zero at the
@@ -290,6 +309,7 @@ AddOne:
 	add r2, 1 @ next word
 	bcs AddOne @ while carry is set, add 1 to the succeeding word.
 pop { r2-r4 , pc }
+//NumberInCopy2sComplement: .word Number
 
 
 PrintStringInReverse: @ string -> r0, length -> r1 ... echoes r0, r1
@@ -306,7 +326,7 @@ pop { r0-r2, pc }
 
 
 PrintString: @ string -> r0 ... r0-> string (echo)
-push { r0-r1, lr }
+push { r0-r1, r12, lr } @ do we have to make it 8 byte aligned??
 	mov r1, r0 @ keep the string here 
 PrintStringLoop:
 	ldrb r0, [r1], 1
@@ -314,7 +334,7 @@ PrintStringLoop:
 		bl PrintChar @ provides clobber protection
 	b PrintStringLoop
 FinishedPrintString:
-pop { r0-r1, pc }
+pop { r0-r1, r12, pc }
 
 
 ObtainValueFromNextArg: 
@@ -351,16 +371,28 @@ regvar_argscratch3 .req r5
 	mov regvar_argflags, 0 @ no square brackets, default offset is positive
 	mov regvar_arg, 0 @ read first argument 
 	ldr regvar_args, =ArgValue @ store arguments here for subsequent calculation
+
+	//ldr regvar_args, [pc, ArgValueInObtainValueFromNextArg - ArgValueInObtainValueFromNextArgLOADPOSITION]
+	//ArgValueInObtainValueFromNextArgLOADPOSITION: @ GNU asm all of a sudden has problems with range. do not write programs for GNU asm
+
 	str regvar_arg, [regvar_args]
 	str regvar_arg, [regvar_args, 4]
 	str regvar_arg, [regvar_args, 8] @ initialize all 3 arguments to zero (default)
 	ldr regvar_arg_asciitable, =ArgAsciiTable 
 
+	//ldr regvar_arg_asciitable, [pc, ArgAsciiTableInObtainValueFromNextArg - ArgAsciiTableInObtainValueFromNextArgLOADPOSITION]
+	//ArgAsciiTableInObtainValueFromNextArgLOADPOSITION: @ GNU asm all of a sudden has problems with range. do not write programs for GNU asm	
+
 ReadArgumentString:
 
 ldrb regvar_argchar, [regvar_argstr, regvar_argj] @ char = argumentstr[j]
-tbh [regvar_arg_asciitable, regvar_argchar, lsl 1] @ branch by ascii character to the right handlers
+tbb [regvar_arg_asciitable, regvar_argchar] @ branch by ascii character to the right handlers
 OBFNABranchOnCharacter:
+	
+	@ mini literal pool is safe here. gnu asm is morally on strike.
+	//ArgValueInObtainValueFromNextArg: .word ArgValue 
+	//ArgAsciiTableInObtainValueFromNextArg: .word ArgAsciiTable
+
 	
 	ArgHandleLeftBracket: @ handle '[': if matchleftbracket, ok. otherwise error.
 		cmp regvar_argstate, matchleftbracket
@@ -639,7 +671,7 @@ InvalidRegisterSpecifiedMsg:
 
 PrintSomeCharNTimes: @ note: PrintChar shields from clobber. r1 is (possibly) modified
 	@ character to print -> r0, how many times -> r1. if non positive, no characters printed.
-push { lr } // do we have to worry about libc expecting an 8 byte aligned stack?
+push { r12, lr } // do we have to worry about libc expecting an 8 byte aligned stack?
 DoPrintSomeCharNTimes:
 	cmp r1, 0
 	ble FinishedPrintSomeCharNTimes
@@ -647,7 +679,7 @@ DoPrintSomeCharNTimes:
 	sub r1, 1
 	b DoPrintSomeCharNTimes @ equivalent to tail recursive call PrintSomeCharNTimes(char, ntimes-1)
 FinishedPrintSomeCharNTimes:
-pop { pc }
+pop { r12, pc }
 
 PrintBuffer: @ flushes the entire buffer to outputfunc. returns printedchars -> r0
 push { r1-r8, r12, lr }

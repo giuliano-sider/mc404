@@ -35,8 +35,8 @@ https://github.com/giuliano-sider/mc404
 .text
 
 
-.include "macros.s" 
 
+.include "macros.s" @ MOVE THIS AND YOU WILL HAVE RANGE PROBLEMS
 
 .global main
 main:
@@ -92,3 +92,16 @@ GoodbyeMsg: .asciz "thanks for testing out the world's finest when it comes to p
 @ outputfunc used for testing is puts (wrapper not necessary in asm: no typing)
 
 .include "data.s" 
+
+.equ bufsize_format, 256 @ store user inputted format string: should be enough for testing purposes
+.equ bufsize_argument, 256 @ store user inputted argument string: should be enough for testing purposes
+
+FormatString: @ for the user application tester
+.rept bufsize_format
+	.byte 0
+.endr
+
+ArgumentString: @ for the user application tester
+.rept bufsize_argument
+	.byte 0
+.endr

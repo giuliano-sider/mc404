@@ -4,7 +4,7 @@ if [ ! -d "./bin" ]; then
     mkdir "./bin"
 fi
 file="./bin/${file%.*}"
-arm-none-eabi-gcc  -Wa,-aghls="$file-listing.txt" -mcpu=cortex-m3 -mthumb --specs=rdimon.specs $2 -lc -lrdimon -Wall -g $1 -o $file
+arm-none-eabi-gcc  -Wa,-aghls="$file-listing.txt" -mcpu=cortex-m3 -mthumb --specs=rdimon.specs -lc -lrdimon $2 -Wall -g $1 -o $file
 if [ $? -ne 0 ] ; then 
     echo "arm-none-eabi-gcc exited with error. no file generated"
     exit
