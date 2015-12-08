@@ -25,10 +25,7 @@ SIDE EFFECTS: prints a big number stored in a buffer (in little endian form). Cl
 
 .text
 
-.align
-PromptFormat: .asciz "%i"
-OutFormat: .asciz "The factorial of %i is %i words long, stored in a buffer %i bytes in size.\n"
-.align
+.include "macros.s" @ MOVING THIS AROUND PROBABLY CREATED THE RANGE PROBLEMS
 
 .global main
 main:
@@ -63,7 +60,11 @@ push { r4-r7, lr }
 	mov r0, r5 @ our responsibility to deallocate the buffer
 	bl free
 pop { r4-r7, pc }
-
+.align
+PromptFormat: .asciz "%i"
+.align
+OutFormat: .asciz "The factorial of %i is %i words long, stored in a buffer %i bytes in size.\n"
+.align
 NumFormatString: .asciz "%l*u\n" @ length (in bytes) specified in argument preceding the number to be formatted.
 .align
 NumArgString: .asciz "r6 lsl 2, [r5]" @ length in bytes of the number, and number (rest of buffer may have garbage)
@@ -184,7 +185,6 @@ DonePrinting: .asciz "\n\n"
 
 
 
-.include "macros.s" @ MOVING THIS AROUND PROBABLY CREATED THE RANGE PROBLEMS
 .include "printfcode.s"
 .include "data.s"
 

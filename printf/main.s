@@ -47,14 +47,14 @@ UserPromptLoop:
 	ldr r0, =UserPromptMsg
 	bl printf
 	ldr r0, =PromptString @ USER PROMPT LOOP
-	ldr r1, =FormatString @ USER PROMPT LOOP
-	ldr r2, =ArgumentString @ read 2 strings from the user @ USER PROMPT LOOP
+	ldr32 r1, FormatString @ USER PROMPT LOOP
+	ldr32 r2, ArgumentString @ read 2 strings from the user @ USER PROMPT LOOP
 	bl scanf @ USER PROMPT LOOP
 	cmp r0, 2 @ check if input was read (both format specifiers having been filled) @ USER PROMPT LOOP
 	bne InputError @ USER PROMPT LOOP
 	ldr r0, =puts @ glibc function used for writing string to stdout 
-	ldr r1, =FormatString @ TESTING ldr r1, =FormatStringTest @
-	ldr r2, =ArgumentString @ TESTING ldr r2, =ArgumentStringTest @
+	ldr32 r1, FormatString @ TESTING ldr r1, =FormatStringTest @
+	ldr32 r2, ArgumentString @ TESTING ldr r2, =ArgumentStringTest @
 	bl printf_baremetal
 	cmp r0, -1
 	itt eq

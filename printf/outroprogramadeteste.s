@@ -2,6 +2,9 @@
 
 
 .text
+
+.include "macros.s" @ actually just three of them are macros // MOVE THIS AND YOU WILL HAVE RANGE PROBLEMS
+
 .global main
 .align
 main:
@@ -29,7 +32,6 @@ ArgumentString:
 
 .align
 
-.include "macros.s" @ actually just two of them are macros // MOVE THIS AND YOU WILL HAVE RANGE PROBLEMS
 .include "printfcode.s" 
 .include "data.s"
 

@@ -1,11 +1,5 @@
 @ data section for the printf executable
 
-.align
-.data
-
-
-
-
 @ branch tables can go on flash memory
 
 .macro FillSpaceBetweenChars charfrom, charto, value @ 2 chars, charto>charfrom, 1 number
@@ -329,9 +323,18 @@ ArgAsciiTable: @ branch table used to branch inside ObtainValueFromNextArg
 */
 
 
+DigitsLookup:
+.byte '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'x'
+
+DigitsLookupCaps:
+.byte '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'X'
 
 
+.align
+.data @ the stuff up there can safely reside in flash memory, but everything downstairs is modified at runtime
 
+
+.align
 PrintCharStaticVars: @ for functions that do printing (static store)
 	@ stores regvar_buffer, regvar_buffercount, regvar_printedchars, regvar_outputfunc
 .word 0, 0, 0, 0
@@ -348,9 +351,9 @@ ArgValue: // keeps values of argument fetched from the argument string, (in Obta
 .endr
 
 @ OUTPUTSTRINGSIZE >= Ceil ( (8*MAXNUMBERSIZE)/3 ) // worst case is printing octal digits
-.equ BUFFERSIZE, 256 @ this is the internal print buffer. it could be replaced entirely by a, say, str instruction to some output device, which would also eliminate the need for outputfunc, for that matter
+.equ BUFFERSIZE, 32 @ this is the internal print buffer. it could be replaced entirely by a, say, str instruction to some output device, which would also eliminate the need for outputfunc, for that matter
 	@ actual size of buffer that holds chars before they go out to outputfunc
-.equ MAXNUMBYTESIZE, 512 @ we can print-format numbers of up to this many bytes
+.equ MAXNUMBYTESIZE, 16 @ we can print-format numbers of up to this many bytes
 	@ maximum number of bytes a number (in memory) can have and still be print-formatted by
 	@ our printf (given in the "lengthspec" field of the format specifier)
 .equ OUTPUTSTRINGSIZE, (8*MAXNUMBYTESIZE)/3 + 1 @ big enough to hold ceil(MAXNUMBYTESIZE*8/3) octal digits
@@ -373,7 +376,7 @@ Number: // keeps internal representation of number (unsigned) for manipulation
 	.byte 0
 .endr
 
-.align
+.align @ this message is customizable... we can't really put it in flash (aprox. 200 bytes)
 ErrorCharArgMsg:
 	.ascii "Error: detected an invalid "
 ArgStrOffendingChar: @ place here the offending spurious character to be reported in an error message
@@ -394,8 +397,3 @@ OffendingCharPosition: @ place where we store the index.
 	.asciz " in a format specifier in the format string\n"
 .align
 
-DigitsLookup:
-.byte '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'x'
-
-DigitsLookupCaps:
-.byte '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'X'

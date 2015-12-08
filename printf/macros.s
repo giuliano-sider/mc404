@@ -1,6 +1,11 @@
 
 @ collection of macros/aux functions for the printf project 
 
+.macro ldr32 reg, const32   @ macro substitui instrucao ldr r0,=const32. BY PROF CELIO
+    movw \reg, :lower16:\const32
+    movt \reg, :upper16:\const32
+.endm
+
 .macro PrintFormattedNumberPrefixes Rregvar_flags Rregvar_digitlookup
 @ prints 0 or 0x prefixes if corresponding flags are set. prints ' ', +, or - if corresponding flags are set.
 push { r0 }
@@ -66,14 +71,11 @@ push { r1, lr }
 	itt eq
 	addeq sp, 8 @ unwind this function's stack (assembly => not a healthy way to program)
 	beq TriedToUseLinkRegister @ user's link register inaccessible
-	ldr r1, =TheUserStack
-
-	//ldr r1, [pc, TheUserStackInLoadRegisterValue - TheUserStackInLoadRegisterValueLOADPOSITION]
-	//TheUserStackInLoadRegisterValueLOADPOSITION: @ GNU asm all of a sudden has problems with range. do not write programs for GNU asm
-	
+	ldr32 r1, TheUserStack @ byebye literal pool. this program is a big boy and has swum out to the ocean
 	ldr r0, [r1, r0, lsl 2] @ fetch the register from where printf saved it in TheUserStack static struct
 pop { r1, pc }
-//TheUserStackInLoadRegisterValue: .word TheUserStack
+@ honestly, shouldnt the literal pool just work by placing it here?
+
 
 StringLength: @ string -> r0 ... r0->string, r1 -> string length.
 push { r2, lr }
@@ -165,10 +167,7 @@ regvar_outputstring .req r4
 regvar_outputstringlength .req r5
 regvar_ODFN_radix .req r6
 regvar_ODFN_aux .req r7 @ no doc on how these .req work, so better safe than sorry
-	ldr regvar_outputstring, =OutputString @ this is the buffer where the number is kept as a string of ascii characters
-	//ldr regvar_outputstring, [pc, OutputStringInObtainDigits - OutputStringInObtainDigitsLOADPOSITION]
-	//OutputStringInObtainDigitsLOADPOSITION: @ GNU asm all of a sudden has problems with range. gnu asm is meant for robot compilers.
-
+	ldr32 regvar_outputstring, OutputString @ this is the buffer where the number is kept as a string of ascii characters
 	mov regvar_outputstringlength, 0 @ outputstringlength = 0
 	mov regvar_ODFN_radix, r2
 	@mov regvar_lookuptable, r3 
@@ -192,7 +191,7 @@ ExtractedAllTheDigits:
 	mov r1, regvar_outputstringlength @ we return the length of the string in r1,
 	mov r0, regvar_outputstring @ and the string itself in r0.
 pop { r4-r7 , pc }
-//OutputStringInObtainDigits: .word OutputString
+
 
 
 
@@ -251,11 +250,7 @@ CopyNumberToBuffer: @ (user provided/ObtainValueFromNextArg provided) pointer to
 					@ returns: r0 -> internal buffer ptr, r1 -> buffer word size
 push {  r2-r4 , lr } @ strict no clobber policy within printf. 
 	@ note: number must be positive (or potentially unsigned): no sign extension done for non word-aligned numbers that are read.
-	ldr r4, =Number @ this is our internal buffer where we copy to.
-
-	//ldr r4, [pc, NumberInCopyNumberToBuffer - NumberInCopyNumberToBufferLOADPOSITION]
-	//NumberInCopyNumberToBufferLOADPOSITION: @ GNU asm all of a sudden has problems with range. do not write programs for GNU asm
-
+	ldr32 r4, Number @ this is our internal buffer where we copy to.
 	lsr r3, r1, 2 @ floor(numbytes/4)
 	mov r2, 0
 	str r2, [r4, r3, lsl 2] @ make sure there is a zero at
@@ -272,7 +267,7 @@ CopiedToBuffer:
 	mov r0, r4 @ return pointer to number in internal buffer
 	mov r1, r3 @ return size of number in words ( ceil(numbytes/4) )
 pop { r2-r4 , pc }
-//NumberInCopyNumberToBuffer: .word Number
+
 
 
 
@@ -280,17 +275,12 @@ Copy2sComplement: @ (user provided/ObtainValueFromNextArg provided) pointer to n
 						@ returns: r0 -> internal buffer ptr, r1 -> buffer word size
 push {  r2-r4 , lr } @ strict no clobber policy within printf. 
 @ note: number must be negative: no sign extension done for non word-aligned numbers that are read.
-	ldr r4, =Number @ this is our internal buffer where we copy to.
-
-	//ldr r4, [pc, NumberInCopy2sComplement - NumberInCopy2sComplementLOADPOSITION]
-	//NumberInCopy2sComplementLOADPOSITION: @ GNU asm all of a sudden has problems with range. do i look like a human compiler???
-
+	ldr32 r4, Number @ this is our internal buffer where we copy to.
 	lsr r3, r1, 2 @ floor(numbytes/4)
 	mov r2, 0
 	str r2, [r4, r3, lsl 2] @ make sure there is a zero at the
 		@ (possibly one past the) end of the number in case it is not word aligned and there are extra bytes at the end.
 	UnsignedCeil r3, r1, 2 @ r3 = Ceil(r1/2^2) number of words our number will have in the internal (private) buffer 
-	//mov r2, r1 @ numsize bytes will be copied
 CopyComplThoseWordsIntoNumber:
 	cbz r1, CopiedComplToBuffer @ while there are bytes left to copy.
 		sub r1, 1
@@ -309,7 +299,7 @@ AddOne:
 	add r2, 1 @ next word
 	bcs AddOne @ while carry is set, add 1 to the succeeding word.
 pop { r2-r4 , pc }
-//NumberInCopy2sComplement: .word Number
+
 
 
 PrintStringInReverse: @ string -> r0, length -> r1 ... echoes r0, r1
@@ -370,28 +360,18 @@ regvar_argscratch3 .req r5
 	mov regvar_argstate, matchleftbracket @ initial state for reading the argument string.
 	mov regvar_argflags, 0 @ no square brackets, default offset is positive
 	mov regvar_arg, 0 @ read first argument 
-	ldr regvar_args, =ArgValue @ store arguments here for subsequent calculation
-
-	//ldr regvar_args, [pc, ArgValueInObtainValueFromNextArg - ArgValueInObtainValueFromNextArgLOADPOSITION]
-	//ArgValueInObtainValueFromNextArgLOADPOSITION: @ GNU asm all of a sudden has problems with range. do not write programs for GNU asm
+	ldr32 regvar_args, ArgValue @ store arguments here for subsequent calculation
 
 	str regvar_arg, [regvar_args]
 	str regvar_arg, [regvar_args, 4]
 	str regvar_arg, [regvar_args, 8] @ initialize all 3 arguments to zero (default)
-	ldr regvar_arg_asciitable, =ArgAsciiTable 
-
-	//ldr regvar_arg_asciitable, [pc, ArgAsciiTableInObtainValueFromNextArg - ArgAsciiTableInObtainValueFromNextArgLOADPOSITION]
-	//ArgAsciiTableInObtainValueFromNextArgLOADPOSITION: @ GNU asm all of a sudden has problems with range. do not write programs for GNU asm	
+	ldr32 regvar_arg_asciitable, ArgAsciiTable 
 
 ReadArgumentString:
 
 ldrb regvar_argchar, [regvar_argstr, regvar_argj] @ char = argumentstr[j]
 tbb [regvar_arg_asciitable, regvar_argchar] @ branch by ascii character to the right handlers
 OBFNABranchOnCharacter:
-	
-	@ mini literal pool is safe here. gnu asm is morally on strike.
-	//ArgValueInObtainValueFromNextArg: .word ArgValue 
-	//ArgAsciiTableInObtainValueFromNextArg: .word ArgAsciiTable
 
 	
 	ArgHandleLeftBracket: @ handle '[': if matchleftbracket, ok. otherwise error.
@@ -608,18 +588,18 @@ pop {  r2-r8 , pc }
 
 
 ErrorCharArg: @ invalid character during argument specifier read
-	ldr r0, =ArgStrOffendingChar
+	ldr32 r0, ArgStrOffendingChar
 	strb regvar_argchar, [r0] @ this character will be inserted in a sui generis error message
 
-	ldr r0, =Number @ store the index here (ObtainDigitsFromNumber requires that its argument reside in memory)
+	ldr32 r0, Number @ store the index here (ObtainDigitsFromNumber requires that its argument reside in memory)
 	str regvar_argj, [r0]
 	mov r1, 1
 	mov r2, 10 @ print index in decimal form
-	ldr r3, =DigitsLookup
+	ldr32 r3, DigitsLookup
 	bl ObtainDigitsFromNumber
 @ takes pointer to number -> r0, word size of number -> r1, radix -> r2, digitlookuptable -> r3.
 @ returns the stringified number in r0 (in reverse order) and the size of the string in r1
-	ldr r2, =ArgStrOffendingCharPosition
+	ldr32 r2, ArgStrOffendingCharPosition
 	add r0, r0, r1 @ store the end of the string here for printing.
 PrintTheArgErrorChar:
 	ldrb r3, [r0, -1]! @ load the most significant digit to be printed
@@ -627,7 +607,7 @@ PrintTheArgErrorChar:
 	subs r1, 1
 	bne PrintTheArgErrorChar
 
-	ldr r0, =ErrorCharArgMsg
+	ldr32 r0, ErrorCharArgMsg
 	bl UnwindObtainValueOnError @ unwind ObtainValue's stack, load error message at r1, return 0 (error)
 
 
@@ -641,28 +621,28 @@ mov pc, lr
 
 
 TriedToUseLinkRegister: @ we warn the user that the user's link register is no accessible from printf.
-	ldr r0, =TriedToUseLinkRegisterMsg
+	ldr32 r0, TriedToUseLinkRegisterMsg
 	bl UnwindObtainValueOnError @@@@ unwind ObtainValue's stack, load error message at r1 return 0 (error)
 TriedToUseLinkRegisterMsg:
 	.asciz "Error: the link register is not accessible from printf (clobbered during branch and link)\n"
 .align
 
 PrematurelyFinishedArgumentString: @ (\0 or ",", haven't matched any arguments yet)
-	ldr r0, =PrematurelyFinishedArgumentStringMsg
+	ldr32 r0, PrematurelyFinishedArgumentStringMsg
 	bl UnwindObtainValueOnError @@@@ unwind ObtainValue's stack, load error message at r1 return 0 (error)
 PrematurelyFinishedArgumentStringMsg:
 	.asciz "Error: argument string terminated in the middle of an argument specifier\n"
 .align
 
 DidNotCloseSquareBrackets: @ (\0 or ",", haven't matched any arguments yet)
-	ldr r0, =DidNotCloseSquareBracketsMsg
+	ldr32 r0, DidNotCloseSquareBracketsMsg
 	bl UnwindObtainValueOnError @@@@ unwind ObtainValue's stack, load error message at r1 return 0 (error)
 DidNotCloseSquareBracketsMsg:
 	.asciz "Error: unmatched square brackets in the argument string\n"
 .align
 
 InvalidRegisterSpecified: @ register must be in the range 0-15
-	ldr r0, =InvalidRegisterSpecifiedMsg
+	ldr32 r0, InvalidRegisterSpecifiedMsg
 	bl UnwindObtainValueOnError @@@@ unwind ObtainValue's stack, load error message at r1 return 0 (error)
 InvalidRegisterSpecifiedMsg:
 	.asciz "Error: register specified as argument must be in the range 0-15\n"
@@ -689,7 +669,7 @@ regvar_buffercount .req r6
 regvar_printedchars .req r7
 regvar_outputfunc .req r8
 
-ldr regvar_staticvars, =PrintCharStaticVars
+ldr32 regvar_staticvars, PrintCharStaticVars
 ldmia regvar_staticvars, { regvar_buffer, regvar_buffercount, regvar_printedchars, regvar_outputfunc }
 
 	mov r0, regvar_buffer @ call outputfunc(buffer) 
@@ -712,7 +692,7 @@ regvar_buffercount .req r6
 regvar_printedchars .req r7
 regvar_outputfunc .req r8
 
-ldr regvar_staticvars, =PrintCharStaticVars
+ldr32 regvar_staticvars, PrintCharStaticVars
 ldmia regvar_staticvars, { regvar_buffer, regvar_buffercount, regvar_printedchars, regvar_outputfunc } 	
 
 	cmp regvar_buffercount, BUFFERSIZE

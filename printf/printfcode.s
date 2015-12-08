@@ -36,7 +36,7 @@ regvar_state .req r9
 
 .equ printf_varstackframesize, 0 @ (in words) if we keep variables on the stack, we'll have to move this
 	
-	ldr r14, =TheUserStack @ we'll keep the user's registers in a friendly table, indexed by regnum.
+	ldr32 r14, TheUserStack @ we'll keep the user's registers in a friendly table, indexed by regnum.
 	stmia r14, { r0-r12 }
 	add r0, sp, 14*4 @ user's stack pointer (we saved 14 registers)
 	str r0, [r14, 13*4] @ r13 === sp 
@@ -45,9 +45,9 @@ regvar_state .req r9
 	str r14, [r0, 15*4] @ lr is user's pc. we dont have access to user's lr.
 	ldr r0, [sp] @ restore r0 (outputfunc is there)
 
-	ldr r3, =PrintCharStaticVars @ these variables we set aside as static variables at this location.
+	ldr32 r3, PrintCharStaticVars @ these variables we set aside as static variables at this location.
 	ldmia r3, {r4, r5, r6, r7} @ buffer, buffercount, printedchars, outputfunc
-	ldr r4, =Buffer @ buffer that stores the string to be passed to outputfunc
+	ldr32 r4, Buffer @ buffer that stores the string to be passed to outputfunc
 	mov r5, 0 @ buffercount initialized to zero: no characters printed out (buffered) yet.
 	mov r6, 0 @ printedchars initialized to zero: no character actually passed out to outputfunc yet.
 	mov r7, r0 @ outputfunc kept here: int outputfunc( const char *printme )
@@ -57,7 +57,7 @@ regvar_state .req r9
 	mov regvar_argumentstr, r2 @ get them out of the way: parameter passing zone
 	mov regvar_i, 0 @ index for reading the format string
 	mov regvar_j, 0 @ index for reading the argument string
-	ldr regvar_asciitable, =FormatStrAsciiTable @@@@ that might have to go below depending on register allocation.
+	ldr32 regvar_asciitable, FormatStrAsciiTable @@@@ that might have to go below depending on register allocation.
 	mov regvar_state, readformatstr
 
 ReadFormatString:
@@ -66,7 +66,6 @@ ldrb regvar_char, [regvar_formatstr, regvar_i] @ char = formatstr[i]
 tbh [regvar_asciitable, regvar_char, lsl 1] @ branch by ascii character to the right handlers
 PrintfBranchOnAsciiCharacter:
 
-	
 
 BranchToHandlePlus:
 	tbh [pc, regvar_state, lsl 1] @ (+)
@@ -359,7 +358,7 @@ regvar_digitlookup .req r3
 		beq ErrorObtainingArgument @ ObtainValueFromNextArg left an error message at sp. unwind printf and leave msg at sp, return -1
 		mov regvar_j, r1
 
-		ldr r1, =PrintCharStaticVars
+		ldr32 r1, PrintCharStaticVars
 		ldr r2, [r1, 4] @ buffercount
 		ldr r3, [r1, 8] @ printedchars 
 		add r1, r2, r3 @ buffercount + printedchars is total number of characters outputted so far.
@@ -372,7 +371,7 @@ regvar_digitlookup .req r3
 		cmp regvar_state, readformatstr
 		beq IncrementI_AndPrintChar @ if in normal reading state, just print it
 
-		ldr regvar_digitlookup, =DigitsLookup
+		ldr32 regvar_digitlookup, DigitsLookup
 		//mov regvar_signbit, 0 @ this just encodes non signed decimal for the next routine's convenience (so it doesnt check sign)
 		mov regvar_radix, 8
 
@@ -391,7 +390,7 @@ regvar_digitlookup .req r3
 		cmp regvar_state, readformatstr
 		beq IncrementI_AndPrintChar @ if in normal reading state, just print it
 
-		ldr regvar_digitlookup, =DigitsLookup
+		ldr32 regvar_digitlookup, DigitsLookup
 		//mov regvar_signbit, 0 @ this just encodes non signed decimal for the next routine's convenience (so it doesnt check sign)
 		mov regvar_radix, 10
 
@@ -400,7 +399,7 @@ regvar_digitlookup .req r3
 		cmp regvar_state, readformatstr
 		beq IncrementI_AndPrintChar @ if in normal reading state, just print it
 
-		ldr regvar_digitlookup, =DigitsLookup
+		ldr32 regvar_digitlookup, DigitsLookup
 		//mov regvar_signbit, 0 @ this just encodes non signed decimal for the next routine's convenience (so it doesnt check sign)
 		mov regvar_radix, 16
 
@@ -409,7 +408,7 @@ regvar_digitlookup .req r3
 		cmp regvar_state, readformatstr
 		beq IncrementI_AndPrintChar @ if in normal reading state, just print it
 
-		ldr regvar_digitlookup, =DigitsLookupCaps
+		ldr32 regvar_digitlookup, DigitsLookupCaps
 		//mov regvar_signbit, 0 @ this just encodes non signed decimal for the next routine's convenience (so it doesnt check sign)
 		mov regvar_radix, 16
 
@@ -435,12 +434,12 @@ BranchToHandleNullByte:
 		bl PrintBuffer @ prints out whatever is in our print buffer
 		@ mov regvar_returnval === r0, regvar_printedchars === r0
 		pop { r0-r12, lr }
-		ldr r0, =PrintCharStaticVars
+		ldr32 r0, PrintCharStaticVars
 		ldr r0, [r0, 8] @ printedchars stored here.
 	mov pc, lr
 
 	PrematurelyFinishedFormatString: @ (\0, not readformatstr)
-		ldr r0, =PrematurelyFinishedFormatStringMsg
+		ldr32 r0, PrematurelyFinishedFormatStringMsg
 		bl UnwindPrintfOnError @@@@ unwind printf's stack, load error message at sp, return -1
 
 BranchToHandlePercent:
@@ -480,7 +479,7 @@ BranchToHandlePercent:
 		cmp regvar_state, readformatstr
 		beq IncrementI_AndPrintChar @ if in normal reading state, just print it
 	HandleSignedDecimalInteger:
-		ldr regvar_digitlookup, =DigitsLookup
+		ldr32 regvar_digitlookup, DigitsLookup
 		orr regvar_flags, 0x80000000 
 			@ this just encodes 'signed decimal' flag set for the next routine's convenience (so it needs to check sign)
 		mov regvar_radix, 10
@@ -628,17 +627,17 @@ BranchToHandlePercent:
 
 
 	ErrorChar: @ invalid character during format specifier read
-		ldr r1, =OffendingChar
+		ldr32 r1, OffendingChar
 		strb regvar_char, [r1] @ this character will be inserted in a sui generis error message
-		ldr r0, =Number @ store the index here (ObtainDigitsFromNumber requires that its argument reside in memory)
+		ldr32 r0, Number @ store the index here (ObtainDigitsFromNumber requires that its argument reside in memory)
 		str regvar_i, [r0]
 		mov r1, 1
 		mov r2, 10 @ print index in decimal form
-		ldr r3, =DigitsLookup
+		ldr32 r3, DigitsLookup
 		bl ObtainDigitsFromNumber
 @ takes pointer to number -> r0, word size of number -> r1, radix -> r2, digitlookuptable -> r3.
 @ returns the stringified number in r0 (in reverse order) and the size of the string in r1
-		ldr r2, =OffendingCharPosition
+		ldr32 r2, OffendingCharPosition
 		add r0, r0, r1 @ store the end of the string here for printing.
 	PrintTheErrorChar:
 		ldrb r3, [r0, -1]! @ load the most significant digit to be printed
@@ -646,19 +645,19 @@ BranchToHandlePercent:
 		subs r1, 1
 		bne PrintTheErrorChar
 	
-		ldr r0, =ErrorCharMsg
+		ldr32 r0, ErrorCharMsg
 		bl UnwindPrintfOnError @ unwind printf's stack, put the error message at sp, return -1
 
 	
 
 
-
+@ removed the literal pool here too, in case gnu asm is screwing something up mysteriously (ahh the proverbial 'features')
 	NegativeFieldWidthError: @ ObtainValueFromNextArg left an error message at sp. unwind printf and leave msg at sp, return -1
-		ldr r0, =NegativeFieldWidthErrorMsg
+		ldr32 r0, NegativeFieldWidthErrorMsg
 		bl UnwindPrintfOnError @ unwind printf's stack, put the error message at sp, return -1
 
 	NegativeFieldLengthError: @ ObtainValueFromNextArg left an error message at sp. unwind printf and leave msg at sp, return -1
-		ldr r0, =NegativeFieldLengthErrorMsg
+		ldr32 r0, NegativeFieldLengthErrorMsg
 		bl UnwindPrintfOnError @ unwind printf's stack, put the error message at sp, return -1
 
 	ErrorObtainingArgument: @ ObtainValueFromNextArg left an error message at sp. unwind printf and leave msg at r1, return -1
@@ -666,13 +665,13 @@ BranchToHandlePercent:
 		bl UnwindPrintfOnError @ unwind printf's stack, put the error message at sp, return -1
 
 	InvalidHLengthModifierError:
-		ldr r0, =InvalidHLengthModifierErrorMsg
+		ldr32 r0, InvalidHLengthModifierErrorMsg
 		bl UnwindPrintfOnError @ unwind printf's stack, put the error message at sp, return -1
 	InvalidLLengthModifierError:
-		ldr r0, =InvalidLLengthModifierErrorMsg
+		ldr32 r0, InvalidLLengthModifierErrorMsg
 		bl UnwindPrintfOnError @ unwind printf's stack, put the error message at sp, return -1
 	InvalidByteSizeError:
-		ldr r0, =InvalidByteSizeErrorMsg
+		ldr32 r0, InvalidByteSizeErrorMsg
 		bl UnwindPrintfOnError @ unwind printf's stack, put the error message at sp, return -1
 
 UnwindPrintfOnError: 
@@ -688,8 +687,6 @@ mov pc, lr
 
 @ !! Error Messages !!
 
-
-	
 	InvalidHLengthModifierErrorMsg: 
 		.asciz "Error: invalid length modifier (spurious 'h'). Format: l<decimal number> | ll | l | h | hh\n"
 	.align
