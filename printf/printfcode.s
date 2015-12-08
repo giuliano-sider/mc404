@@ -63,9 +63,13 @@ regvar_state .req r9
 ReadFormatString:
 
 ldrb regvar_char, [regvar_formatstr, regvar_i] @ char = formatstr[i]
-tbh [regvar_asciitable, regvar_char, lsl 1] @ branch by ascii character to the right handlers
+ldrb r1, [regvar_asciitable, regvar_char] @ load four byte aligned offset/4 from the branch table
+ldr32 r2, PrintfBranchOnAsciiCharacter+1 @ make sure all of our branch locations are four byte (2**2) aligned. THUMB bit set.
+add r2, r2, r1, lsl 2 @ branch to: 4*tablebyteoffset + baseaddress + 1 for the THUMB bit
+bx r2 @ all sorts of inane rules regarding PC. ARM can do better than this.
+// tbh [regvar_asciitable, regvar_char, lsl 1] @ branch by ascii character to the right handlers
+.align
 PrintfBranchOnAsciiCharacter:
-
 
 BranchToHandlePlus:
 	tbh [pc, regvar_state, lsl 1] @ (+)
@@ -82,7 +86,7 @@ BranchToHandlePlus:
 		add regvar_i, 1
 		b ReadFormatString
 
-
+.align
 BranchToHandleDash:
 	tbh [pc, regvar_state, lsl 1] @ (-)
 	HandleDash:
@@ -97,7 +101,7 @@ BranchToHandleDash:
 		orr regvar_flags, (1<<dashflag) @ flags.dash <- true
 		add regvar_i, 1
 		b ReadFormatString	
-
+.align
 BranchToHandleSpace:
 	tbh [pc, regvar_state, lsl 1] @ (' ')
 	HandleSpace:
@@ -113,7 +117,7 @@ BranchToHandleSpace:
 		orr regvar_flags, (1<<spaceflag) @ flags.space <- true
 		add regvar_i, 1
 		b ReadFormatString
-
+.align
 BranchToHandlePound:
 	tbh [pc, regvar_state, lsl 1] @ ('#')
 	HandlePound:
@@ -130,7 +134,7 @@ BranchToHandlePound:
 		add regvar_i, 1
 		b ReadFormatString
 
-
+.align
 BranchToHandleZero:
 	tbh [pc, regvar_state, lsl 1] @ (0)
 	HandleNaught:
@@ -146,7 +150,7 @@ BranchToHandleZero:
 		add regvar_i, 1
 		b ReadFormatString
 
-
+.align
 BranchToHandleStar:
 	tbh [pc, regvar_state, lsl 1] @ (*)
 	HandleStar:
@@ -190,7 +194,7 @@ BranchToHandleStar:
 		mov regvar_state, readformatspecifier @ done obtaining the length.
 		b ReadFormatString
 
-
+.align
 BranchToHandleL:
 	tbh [pc, regvar_state, lsl 1] @ (l)
 	HandleL:
@@ -213,7 +217,7 @@ BranchToHandleL:
 		moveq regvar_state, readformatspecifier
 		beq ReadFormatString
 		bl InvalidLLengthModifierError @ if we got here, then we have an invalid L (after an H, for instance)
-
+.align
 BranchToHandleH:
 	tbh [pc, regvar_state, lsl 1] @ (h, readflags/readwidth/readlength)
 	HandleH:
@@ -236,7 +240,7 @@ BranchToHandleH:
 		moveq regvar_state, readformatspecifier
 		beq ReadFormatString
 		bl InvalidHLengthModifierError @ if we got here, then we have an invalid H (after an L, for instance)
-
+.align
 BranchToHandleDigits:
 	tbh [pc, regvar_state, lsl 1] @ ([1-9])
 	HandleDigits:
@@ -271,7 +275,7 @@ BranchToHandleDigits:
 
 regvar_radix .req r2
 regvar_digitlookup .req r3
-
+.align
 	HandleC: @ (c)
 		cmp regvar_state, readformatstr
 		beq IncrementI_AndPrintChar @ if in normal reading state, just print it
@@ -305,7 +309,7 @@ regvar_digitlookup .req r3
 			pop { r0 }
 			bl PrintChar
 			b ReadFormatString
-		
+.align		
 	HandleS: @ (s)
 
 		cmp regvar_state, readformatstr
@@ -343,7 +347,7 @@ regvar_digitlookup .req r3
 			//mov r0, regvar_valueptr @ print the padding first => right justification. then the string
 			bl PrintString @ string -> r0 ... r0-> string (echo)
 			b ReadFormatString
-
+.align
 	HandleN: @ (n)
 		cmp regvar_state, readformatstr
 		beq IncrementI_AndPrintChar @ if in normal reading state, just print it
@@ -367,6 +371,7 @@ regvar_digitlookup .req r3
 		add regvar_i, 1
 		mov regvar_state, readformatstr 
 		b ReadFormatString
+.align
 	HandleO: @ (o) unsigned octal
 		cmp regvar_state, readformatstr
 		beq IncrementI_AndPrintChar @ if in normal reading state, just print it
@@ -376,6 +381,7 @@ regvar_digitlookup .req r3
 		mov regvar_radix, 8
 
 		b HandleNumberFormatting
+.align
 	HandleP: @ (p) our standard format for printing pointers is %0#10x
 		cmp regvar_state, readformatstr
 		beq IncrementI_AndPrintChar @ if in normal reading state, just print it
@@ -385,7 +391,7 @@ regvar_digitlookup .req r3
 		mov regvar_length, 4 @ four byte value to be printed
 
 		b HandleX
-
+.align
 	HandleU: @ (u)
 		cmp regvar_state, readformatstr
 		beq IncrementI_AndPrintChar @ if in normal reading state, just print it
@@ -395,6 +401,7 @@ regvar_digitlookup .req r3
 		mov regvar_radix, 10
 
 		b HandleNumberFormatting
+.align
 	HandleX: @ (c)
 		cmp regvar_state, readformatstr
 		beq IncrementI_AndPrintChar @ if in normal reading state, just print it
@@ -404,6 +411,7 @@ regvar_digitlookup .req r3
 		mov regvar_radix, 16
 
 		b HandleNumberFormatting
+.align
 	HandleBigX: @ (c)
 		cmp regvar_state, readformatstr
 		beq IncrementI_AndPrintChar @ if in normal reading state, just print it
@@ -413,13 +421,14 @@ regvar_digitlookup .req r3
 		mov regvar_radix, 16
 
 		b HandleNumberFormatting
+.align
 	HandleOther: @ (any other character not on the list)
 		cmp regvar_state, readformatstr
 		beq IncrementI_AndPrintChar @ if in normal reading state, just print it	
 		bl ErrorChar @ we've detected an invalid character in the format specifier
 
 
-
+.align
 BranchToHandleNullByte:
 	tbb [pc, regvar_state] @ (\0)
 	HandleNullByte:
@@ -441,7 +450,7 @@ BranchToHandleNullByte:
 	PrematurelyFinishedFormatString: @ (\0, not readformatstr)
 		ldr32 r0, PrematurelyFinishedFormatStringMsg
 		bl UnwindPrintfOnError @@@@ unwind printf's stack, load error message at sp, return -1
-
+.align
 BranchToHandlePercent:
 	tbb [pc, regvar_state] @ (%)
 	HandlePercent:
@@ -474,7 +483,7 @@ BranchToHandlePercent:
 
 
 
-
+.align
 	HandleD: @ (d, i)
 		cmp regvar_state, readformatstr
 		beq IncrementI_AndPrintChar @ if in normal reading state, just print it

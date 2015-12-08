@@ -9,95 +9,95 @@
 	.endr
 .endm @ could use this to fill the branch tables instead
 
-/* too complicated to put trampolines, etc. use a halfword table instead
+// we use four byte aligned branch locations.
 FormatStrAsciiTable:  @ branch table used to branch inside printf 
 @ (based on ascii character read from the format string)
-.byte (BranchToHandleNullByte-PrintfBranchOnAsciiCharacter)/2 @ '\0'
+.byte (BranchToHandleNullByte-PrintfBranchOnAsciiCharacter)/4 @ '\0'
 .rept ' ' - 1
-	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/2
+	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/4
 .endr
 @FillSpaceBetweenChars '\0', ' ', (HandleOther-PrintfBranchOnAsciiCharacter)/2
-.byte (BranchToHandleSpace-PrintfBranchOnAsciiCharacter)/2 @ ' '
+.byte (BranchToHandleSpace-PrintfBranchOnAsciiCharacter)/4 @ ' '
 @FillSpaceBetweenChars ' ', '#', (HandleOther-PrintfBranchOnAsciiCharacter)/2
 .rept '#' - ' ' - 1
-	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/2
+	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/4
 .endr
-.byte (BranchToHandlePound-PrintfBranchOnAsciiCharacter)/2 @ '#'
+.byte (BranchToHandlePound-PrintfBranchOnAsciiCharacter)/4 @ '#'
 @FillSpaceBetweenChars '#', '%', (HandleOther-PrintfBranchOnAsciiCharacter)/2
 .rept '%' - '#' - 1
-	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/2
+	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/4
 .endr
-.byte (BranchToHandlePercent-PrintfBranchOnAsciiCharacter)/2 @ '%'
+.byte (BranchToHandlePercent-PrintfBranchOnAsciiCharacter)/4 @ '%'
 @FillSpaceBetweenChars '*', '%', (HandleOther-PrintfBranchOnAsciiCharacter)/2
 .rept '*' - '%' - 1
-	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/2
+	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/4
 .endr
-.byte (BranchToHandleStar-PrintfBranchOnAsciiCharacter)/2 @ '*'
-.byte (BranchToHandlePlus-PrintfBranchOnAsciiCharacter)/2 @ '+'
-.byte (HandleOther-PrintfBranchOnAsciiCharacter)/2
-.byte (BranchToHandleDash-PrintfBranchOnAsciiCharacter)/2 @ '-'
+.byte (BranchToHandleStar-PrintfBranchOnAsciiCharacter)/4 @ '*'
+.byte (BranchToHandlePlus-PrintfBranchOnAsciiCharacter)/4 @ '+'
+.byte (HandleOther-PrintfBranchOnAsciiCharacter)/4
+.byte (BranchToHandleDash-PrintfBranchOnAsciiCharacter)/4 @ '-'
 @FillSpaceBetweenChars '-', '0', (HandleOther-PrintfBranchOnAsciiCharacter)/2
 .rept '0' - '-' - 1
-	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/2
+	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/4
 .endr
-.byte (BranchToHandleZero-PrintfBranchOnAsciiCharacter)/2 @ '0'
+.byte (BranchToHandleZero-PrintfBranchOnAsciiCharacter)/4 @ '0'
 .rept 9 @ handle the digits [1-9]
-	.byte (BranchToHandleDigits-PrintfBranchOnAsciiCharacter)/2 @ '[1-9]'
+	.byte (BranchToHandleDigits-PrintfBranchOnAsciiCharacter)/4 @ '[1-9]'
 .endr
 @FillSpaceBetweenChars '9', 'X', (HandleOther-PrintfBranchOnAsciiCharacter)/2
 .rept 'X' - '9' - 1
-	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/2
+	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/4
 .endr
-.byte (HandleBigX-PrintfBranchOnAsciiCharacter)/2 @ 'X' (in caps)
+.byte (HandleBigX-PrintfBranchOnAsciiCharacter)/4 @ 'X' (in caps)
 @FillSpaceBetweenChars 'X', 'c', (HandleOther-PrintfBranchOnAsciiCharacter)/2
 .rept 'c' - 'X' - 1
-	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/2
+	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/4
 .endr
-.byte (HandleC-PrintfBranchOnAsciiCharacter)/2 @ 'c'
-.byte (HandleD-PrintfBranchOnAsciiCharacter)/2 @ 'd'
+.byte (HandleC-PrintfBranchOnAsciiCharacter)/4 @ 'c'
+.byte (HandleD-PrintfBranchOnAsciiCharacter)/4 @ 'd'
 @FillSpaceBetweenChars 'd', 'h', (HandleOther-PrintfBranchOnAsciiCharacter)/2
 .rept 'h' - 'd' - 1 
-	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/2
+	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/4
 .endr
-.byte (BranchToHandleH-PrintfBranchOnAsciiCharacter)/2 @ 'h'
-.byte (HandleD-PrintfBranchOnAsciiCharacter)/2 @ 'i' @ same as 'd'
+.byte (BranchToHandleH-PrintfBranchOnAsciiCharacter)/4 @ 'h'
+.byte (HandleD-PrintfBranchOnAsciiCharacter)/4 @ 'i' @ same as 'd'
 @FillSpaceBetweenChars 'i', 'l', (HandleOther-PrintfBranchOnAsciiCharacter)/2
 .rept 'l' - 'i' -1
-	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/2
+	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/4
 .endr
-.byte (BranchToHandleL-PrintfBranchOnAsciiCharacter)/2 @ 'l'
+.byte (BranchToHandleL-PrintfBranchOnAsciiCharacter)/4 @ 'l'
 @FillSpaceBetweenChars 'l', 'n', (HandleOther-PrintfBranchOnAsciiCharacter)/2
 .rept 'n'- 'l' - 1
-	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/2
+	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/4
 .endr
-.byte (HandleN-PrintfBranchOnAsciiCharacter)/2 @ 'n'
+.byte (HandleN-PrintfBranchOnAsciiCharacter)/4 @ 'n'
 @FillSpaceBetweenChars 'n', 'o', (HandleOther-PrintfBranchOnAsciiCharacter)/2
 .rept 'o' - 'n' - 1
-	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/2
+	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/4
 .endr
-.byte (HandleO-PrintfBranchOnAsciiCharacter)/2 @ 'o'
-.byte (HandleP-PrintfBranchOnAsciiCharacter)/2 @ 'p'
+.byte (HandleO-PrintfBranchOnAsciiCharacter)/4 @ 'o'
+.byte (HandleP-PrintfBranchOnAsciiCharacter)/4 @ 'p'
 @FillSpaceBetweenChars 'p', 's', (HandleOther-PrintfBranchOnAsciiCharacter)/2
 .rept 's' - 'p' - 1
-	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/2
+	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/4
 .endr
-.byte (HandleS-PrintfBranchOnAsciiCharacter)/2 @ 's'
+.byte (HandleS-PrintfBranchOnAsciiCharacter)/4 @ 's'
 @FillSpaceBetweenChars 's', 'u', (HandleOther-PrintfBranchOnAsciiCharacter)/2
 .rept 'u' - 's' - 1
-	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/2
+	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/4
 .endr
-.byte (HandleU-PrintfBranchOnAsciiCharacter)/2 @ 'u'
+.byte (HandleU-PrintfBranchOnAsciiCharacter)/4 @ 'u'
 .rept 'x' - 'u' - 1
-	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/2
+	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/4
 .endr
-.byte (HandleX-PrintfBranchOnAsciiCharacter)/2 @ 'x'
+.byte (HandleX-PrintfBranchOnAsciiCharacter)/4 @ 'x'
 @FillSpaceBetweenChars 'x', 256, (HandleOther-PrintfBranchOnAsciiCharacter)/2
 .rept 256 - 'x' - 1
-	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/2
+	.byte (HandleOther-PrintfBranchOnAsciiCharacter)/4
 .endr
-*/
 
 
+/*
 FormatStrAsciiTable:  @ branch table used to branch inside printf. some branches are sort of long, so we use hword
 @ (based on ascii character read from the format string)
 .hword (BranchToHandleNullByte-PrintfBranchOnAsciiCharacter)/2 @ '\0'
@@ -183,7 +183,7 @@ FormatStrAsciiTable:  @ branch table used to branch inside printf. some branches
 .rept 256 - 'x' - 1
 	.hword (HandleOther-PrintfBranchOnAsciiCharacter)/2
 .endr
-
+*/
 
 ArgAsciiTable: @ branch table used to branch inside ObtainValueFromNextArg 
 @ (based on ascii character read from the argument string)
